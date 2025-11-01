@@ -1,4 +1,5 @@
 import sys
+import argparse
 import requests
 import qrcode
 from io import BytesIO
@@ -11,12 +12,13 @@ sys.path.insert(0, str(project_root))
 from app.config import settings
 from app.gsheet_client import GSheetClient
 
-def send_qr_code_emails_mailgun():
+def send_qr_code_emails_mailgun(limit: int = None):
     """
     Reads the guest list, generates QR codes, and emails them using the Mailgun API.
+    An optional limit can be provided to send emails in batches.
     """
-    if not all([settings.MAILGUN_API_KEY, settings.MAILGUN_DOMAIN, settings.MAILGUN_API_BASE_URL]):
-        print("錯誤：尚未完整設定 Mailgun。請檢查 .env 檔案中的 MAILGUN_API_KEY, MAILGUN_DOMAIN, 和 MAILGUN_API_BASE_URL。")
+    if not all([settings.MAILGUN_API_KEY, settings.MAILGUN_DOMAIN]):
+        print("錯誤：尚未設定 Mailgun。請檢查 .env 檔案。")
         return
 
     print("正在連接 Google Sheets...")
@@ -24,7 +26,7 @@ def send_qr_code_emails_mailgun():
         gsheet_client = GSheetClient.from_settings()
         worksheet = gsheet_client.get_worksheet(settings.WORKSHEET_NAME)
     except Exception as e:
-        print(f"錯誤：無法連接 Google Sheets。請檢查設定。({e})")
+        print(f"錯誤：無法連接 Google Sheets。 ({e})")
         return
 
     print("正在讀取賓客名單...")
@@ -39,9 +41,13 @@ def send_qr_code_emails_mailgun():
         print("所有賓客的報到憑證皆已寄送。")
         return
 
-    print(f"找到 {len(attendees_to_email)} 位賓客需要寄送報到憑證...")
+    # Apply the limit if provided
+    if limit is not None and limit > 0:
+        print(f"找到 {len(attendees_to_email)} 位未寄送的賓客，本次將處理最多 {limit} 位。")
+        attendees_to_email = attendees_to_email[:limit]
+    else:
+        print(f"找到 {len(attendees_to_email)} 位賓客需要寄送報到憑證...")
 
-    # Use the configurable base URL
     mailgun_api_url = f"{settings.MAILGUN_API_BASE_URL.rstrip('/')}/{settings.MAILGUN_DOMAIN}/messages"
     sent_count = 0
 
@@ -56,22 +62,22 @@ def send_qr_code_emails_mailgun():
 
         print(f"正在處理 '{name}' ({email})...")
 
-        qr_img = qrcode.make(unique_id)
-        img_byte_arr = BytesIO()
-        qr_img.save(img_byte_arr, format='PNG')
-        img_byte_arr.seek(0)
-
-        html_body = f"""
-        <html><body>
-            <p>Hi {name},</p>
-            <p>誠摯邀請您參加本次的年度尾牙！</p>
-            <p>請於活動當天出示此 QR Code 進行報到與簽退。</p><br>
-            <img src="cid:qrcode.png"><br>
-            <p>期待您的蒞臨！</p>
-        </body></html>
-        """
-
+        # --- Generate QR Code and send email ---
         try:
+            qr_img = qrcode.make(unique_id)
+            img_byte_arr = BytesIO()
+            qr_img.save(img_byte_arr, format='PNG')
+            img_byte_arr.seek(0)
+
+            html_body = f"""
+            <html><body>
+                <p>Hi {name},</p>
+                <p>這是您的尾牙報到 QR Code。</p><br>
+                <img src="cid:qrcode.png"><br>
+                <p>期待您的蒞臨！</p>
+            </body></html>
+            """
+
             response = requests.post(
                 mailgun_api_url,
                 auth=("api", settings.MAILGUN_API_KEY),
@@ -87,11 +93,8 @@ def send_qr_code_emails_mailgun():
 
             print(f"  -> Email 寄送成功。")
 
-            uid_col_header = settings.COL_UNIQUE_ID
-            status_col_header = settings.COL_EMAIL_SENT_STATUS
-
-            cell = worksheet.find(str(unique_id), in_column=worksheet.find(uid_col_header).col)
-            worksheet.update_cell(cell.row, worksheet.find(status_col_header).col, 'TRUE')
+            cell = worksheet.find(str(unique_id), in_column=worksheet.find(settings.COL_UNIQUE_ID).col)
+            worksheet.update_cell(cell.row, worksheet.find(settings.COL_EMAIL_SENT_STATUS).col, 'TRUE')
             print(f"  -> Google Sheet 狀態更新成功。")
 
             sent_count += 1
@@ -104,6 +107,11 @@ def send_qr_code_emails_mailgun():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Send QR code emails to attendees.")
+    parser.add_argument("--limit", type=int, help="Limit the number of emails to send in this batch.")
+    args = parser.parse_args()
+
     from dotenv import load_dotenv
     load_dotenv()
-    send_qr_code_emails_mailgun()
+
+    send_qr_code_emails_mailgun(limit=args.limit)

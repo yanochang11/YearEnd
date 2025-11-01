@@ -2,48 +2,28 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>尾牙報到掃描器</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: #f0f2f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
             margin: 0;
             color: #333;
+            transition: background-color 0.2s ease-in-out;
         }
         .container {
-            background: #fff;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            width: 90%;
-            max-width: 500px;
-        }
-        h1 {
-            margin-top: 0;
-            color: #1877f2;
-        }
-        #qr-reader {
-            width: 100%;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 1rem;
-        }
-        .mode-selector {
-            margin-bottom: 1rem;
             display: flex;
-            justify-content: center;
-            gap: 1rem;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100vh;
+            padding: 1rem;
+            box-sizing: border-box;
         }
-        .mode-selector input[type="radio"] {
-            display: none;
-        }
+        h1 { margin-top: 0; color: #1877f2; text-align: center; }
+        #qr-reader { width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid #ddd; }
+        .mode-selector { display: flex; justify-content: center; gap: 1rem; margin: 1rem 0; }
+        .mode-selector input[type="radio"] { display: none; }
         .mode-selector label {
             padding: 0.75rem 1.5rem;
             border: 1px solid #ccc;
@@ -57,53 +37,64 @@
             border-color: #1877f2;
         }
         #result {
-            margin-top: 1rem;
-            padding: 1rem;
-            border-radius: 8px;
-            font-size: 1.1rem;
+            padding: 1.5rem;
+            border-radius: 12px;
+            font-size: 1.5rem;
             font-weight: bold;
+            text-align: center;
             word-wrap: break-word;
+            color: #fff;
+            visibility: hidden;
+            position: fixed; /* Keep it at the top */
+            top: 1rem;
+            left: 1rem;
+            right: 1rem;
+            z-index: 1000;
         }
-        .result-success {
-            background-color: #e9f5e9;
-            color: #4caf50;
-        }
-        .result-error {
-            background-color: #fdecea;
-            color: #f44336;
-        }
+        .result-visible { visibility: visible; }
+        .result-success { background-color: #4caf50; }
+        .result-error { background-color: #f44336; }
+
         #api-key-input {
-            width: calc(100% - 20px);
+            width: 100%;
             padding: 10px;
-            margin-bottom: 1rem;
             border: 1px solid #ccc;
             border-radius: 5px;
+            box-sizing: border-box;
+            margin-top: 1rem;
         }
+
+        @keyframes flash-success { 0% { background-color: #4caf50; } 100% { background-color: #f0f2f5; } }
+        @keyframes flash-error { 0% { background-color: #f44336; } 100% { background-color: #f0f2f5; } }
+        .body-flash-success { animation: flash-success 1s ease-out; }
+        .body-flash-error { animation: flash-error 0.5s ease-out; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>尾牙報到掃描器</h1>
-        <input type="text" id="api-key-input" placeholder="請輸入 API Key">
-        <div id="qr-reader"></div>
-        <div class="mode-selector">
-            <input type="radio" id="check-in-mode" name="scan-mode" value="check-in" checked>
-            <label for="check-in-mode">簽到</label>
-            <input type="radio" id="check-out-mode" name="scan-mode" value="check-out">
-            <label for="check-out-mode">簽退</label>
+        <div id="result"></div>
+        <div>
+            <h1>尾牙報到掃描器</h1>
+            <div id="qr-reader"></div>
+            <div class="mode-selector">
+                <input type="radio" id="check-in-mode" name="scan-mode" value="check-in" checked>
+                <label for="check-in-mode">簽到</label>
+                <input type="radio" id="check-out-mode" name="scan-mode" value="check-out">
+                <label for="check-out-mode">簽退</label>
+            </div>
         </div>
-        <div id="result">請將 QR Code 對準掃描框</div>
+        <input type="text" id="api-key-input" placeholder="請在此輸入 API Key">
     </div>
 
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     <script>
         const resultDiv = document.getElementById('result');
         const apiKeyInput = document.getElementById('api-key-input');
+        const bodyEl = document.body;
 
         let audioContext;
-        try {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        } catch (e) { console.error("Web Audio API is not supported."); }
+        try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); }
+        catch (e) { console.error("Web Audio API not supported."); }
 
         function playSound(type) {
             if (!audioContext) return;
@@ -130,7 +121,6 @@
             const mode = document.querySelector('input[name="scan-mode"]:checked').value;
             const endpoint = mode === 'check-in' ? '/api/check-in' : '/api/check-out';
             const apiKey = apiKeyInput.value;
-
             if (!apiKey) {
                 displayResult("請先輸入 API Key", false);
                 setTimeout(() => html5QrcodeScanner.resume(), 2000);
@@ -147,11 +137,8 @@
                     body: JSON.stringify({ unique_id: uniqueId }),
                 });
                 const data = await response.json();
-
                 if (response.ok) {
-                    let message = (mode === 'check-in')
-                        ? `${data.name} (${data.department}) 簽到成功！`
-                        : `${data.name} (${data.department}) 簽退成功！`;
+                    let message = (mode === 'check-in' ? `${data.name} (${data.department}) 簽到成功！` : `${data.name} (${data.department}) 簽退成功！`);
                     if (mode === 'check-in' && data.table_number) {
                         message += ` 您的桌號是：${data.table_number}`;
                     }
@@ -174,8 +161,16 @@
 
         function displayResult(message, isSuccess) {
             resultDiv.textContent = message;
-            resultDiv.className = isSuccess ? 'result-success' : 'result-error';
+            resultDiv.classList.add('result-visible');
+            resultDiv.className = isSuccess ? 'result-visible result-success' : 'result-visible result-error';
+            const flashClass = isSuccess ? 'body-flash-success' : 'body-flash-error';
+            bodyEl.classList.add(flashClass);
             playSound(isSuccess ? 'success' : 'error');
+            const duration = isSuccess ? 1000 : 500;
+            setTimeout(() => {
+                bodyEl.classList.remove(flashClass);
+                resultDiv.classList.remove('result-visible', 'result-success', 'result-error');
+            }, duration);
         }
 
         const html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
