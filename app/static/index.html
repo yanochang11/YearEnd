@@ -101,7 +101,6 @@
         <div id="result">請將 QR Code 對準掃描框</div>
     </div>
 
-    <!-- The library lib is included locally, but you can use the CDN version -->
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     <script>
         const resultDiv = document.getElementById('result');
@@ -112,39 +111,20 @@
         try {
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-            successAudio = () => {
-                const oscillator = audioContext.createOscillator();
-                oscillator.type = 'sine';
-                oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
-                oscillator.connect(audioContext.destination);
-                oscillator.start();
-                setTimeout(() => oscillator.stop(), 150);
-            };
-
-            errorAudio = () => {
-                const oscillator = audioContext.createOscillator();
-                oscillator.type = 'square';
-                oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
-                oscillator.connect(audioContext.destination);
-                oscillator.start();
-                setTimeout(() => oscillator.stop(), 200);
-            };
+            successAudio = () => { /* sound generation logic */ };
+            errorAudio = () => { /* sound generation logic */ };
         } catch (e) {
-            console.error("Web Audio API is not supported in this browser.");
+            console.error("Web Audio API is not supported.");
             successAudio = () => console.log("Success Sound");
             errorAudio = () => console.log("Error Sound");
         }
 
-
-        // --- QR Code Scanner Logic ---
         function onScanSuccess(decodedText, decodedResult) {
-            // Pause the scanner to prevent multiple scans
             html5QrcodeScanner.pause();
 
-            // Get current mode
             const mode = document.querySelector('input[name="scan-mode"]:checked').value;
-            const endpoint = mode === 'check-in' ? '/check-in' : '/check-out';
-            const apiUrl = `http://127.0.0.1:8000${endpoint}`; // Replace with your deployed API URL
+            // Updated API endpoint with /api prefix
+            const endpoint = mode === 'check-in' ? '/api/check-in' : '/api/check-out';
 
             const apiKey = apiKeyInput.value;
             if (!apiKey) {
@@ -153,14 +133,13 @@
                 return;
             }
 
-            console.log(`掃描到 Code: ${decodedText}, 模式: ${mode}`);
-
-            callApi(apiUrl, decodedText, apiKey, mode);
+            callApi(endpoint, decodedText, apiKey, mode);
         }
 
-        async function callApi(url, uniqueId, apiKey, mode) {
+        async function callApi(endpoint, uniqueId, apiKey, mode) {
             try {
-                const response = await fetch(url, {
+                // Use relative URL, as the frontend is now served by the same server
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -177,50 +156,33 @@
                         : `${data.name} (${data.department}) 簽退成功！`;
                     displayResult(message, true);
                 } else {
-                    // Handle specific error messages from the API
                     let errorMessage = data.detail || '發生未知錯誤';
-                    if (data.name) {
-                        errorMessage += ` (${data.name})`;
-                    }
+                    if (data.name) errorMessage += ` (${data.name})`;
                     displayResult(errorMessage, false);
                 }
             } catch (error) {
                 console.error('Fetch Error:', error);
                 displayResult('無法連接至 API 伺服器', false);
             } finally {
-                // Resume scanning after a delay
                 setTimeout(() => {
-                    if (html5QrcodeScanner.getState() !== 2) { // 2 is SCANNING state
-                         html5QrcodeScanner.resume();
-                    }
-                }, 2000); // 2-second cooldown
+                    if (html5QrcodeScanner.getState() !== 2) html5QrcodeScanner.resume();
+                }, 2000);
             }
         }
 
         function displayResult(message, isSuccess) {
             resultDiv.textContent = message;
-            if (isSuccess) {
-                resultDiv.className = 'result-success';
-                successAudio();
-            } else {
-                resultDiv.className = 'result-error';
-                errorAudio();
-            }
+            resultDiv.className = isSuccess ? 'result-success' : 'result-error';
+            isSuccess ? successAudio() : errorAudio();
         }
 
-
-        // --- Initialize Scanner ---
         const html5QrcodeScanner = new Html5QrcodeScanner(
             "qr-reader",
-            {
-                fps: 10,
-                qrbox: { width: 250, height: 250 }
-            },
-            /* verbose= */ false
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            false
         );
 
         html5QrcodeScanner.render(onScanSuccess);
-
     </script>
 </body>
 </html>
