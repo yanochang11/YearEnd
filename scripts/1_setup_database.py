@@ -14,7 +14,7 @@ from app.config import settings
 # Define the necessary scopes for the setup script
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"  # Full drive access is needed to create and manage files
+    "https://www.googleapis.com/auth/drive"
 ]
 
 def setup_database():
@@ -37,7 +37,16 @@ def setup_database():
         spreadsheet = client.open(settings.SPREADSHEET_NAME)
     except gspread.exceptions.SpreadsheetNotFound:
         spreadsheet = client.create(settings.SPREADSHEET_NAME)
-        print(f"試算表建立成功！")
+        print(f"試算表 '{settings.SPREADSHEET_NAME}' 建立成功！")
+
+        # Share the newly created spreadsheet if an email is provided
+        if settings.GOOGLE_ACCOUNT_EMAIL_TO_SHARE:
+            print(f"正在將試算表分享給：{settings.GOOGLE_ACCOUNT_EMAIL_TO_SHARE}...")
+            try:
+                spreadsheet.share(settings.GOOGLE_ACCOUNT_EMAIL_TO_SHARE, perm_type='user', role='writer')
+                print("分享成功！")
+            except Exception as e:
+                print(f"警告：分享試算表時發生錯誤。請手動檢查權限設定。 ({e})")
 
     try:
         worksheet = spreadsheet.worksheet(settings.WORKSHEET_NAME)
@@ -61,26 +70,17 @@ def setup_database():
         print("警告：'attendees.csv' 為空或格式不正確。")
         return
 
-    # Use column names from settings
     original_headers = list(attendees[0].keys())
     headers = original_headers + [
-        settings.COL_UNIQUE_ID,
-        settings.COL_EMAIL_SENT_STATUS,
-        settings.COL_CHECK_IN_STATUS,
-        settings.COL_CHECK_IN_TIME,
-        settings.COL_CHECK_OUT_STATUS,
-        settings.COL_CHECK_OUT_TIME
+        settings.COL_UNIQUE_ID, settings.COL_EMAIL_SENT_STATUS,
+        settings.COL_CHECK_IN_STATUS, settings.COL_CHECK_IN_TIME,
+        settings.COL_CHECK_OUT_STATUS, settings.COL_CHECK_OUT_TIME
     ]
 
     rows_to_insert = [headers]
     for attendee in attendees:
         row = [attendee.get(h, '') for h in original_headers] + [
-            str(uuid.uuid4()),
-            'FALSE',
-            'FALSE',
-            '',
-            'FALSE',
-            ''
+            str(uuid.uuid4()), 'FALSE', 'FALSE', '', 'FALSE', ''
         ]
         rows_to_insert.append(row)
 

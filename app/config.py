@@ -1,6 +1,7 @@
 import base64
 import json
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
 
 class Settings(BaseSettings):
     """
@@ -11,6 +12,9 @@ class Settings(BaseSettings):
 
     # Google Cloud Service Account JSON, base64 encoded
     GOOGLE_SERVICE_ACCOUNT_JSON_BASE64: str = ""
+
+    # (Optional) Personal Google account to share the created sheet with
+    GOOGLE_ACCOUNT_EMAIL_TO_SHARE: Optional[str] = None
 
     # API Security Key
     API_KEY: str = "your_default_api_key"
