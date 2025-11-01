@@ -65,26 +65,23 @@ def check_in(request: CheckInRequest, api_key: str = Depends(get_api_key)):
         if not attendee:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="賓客 ID 不存在")
 
-        if str(attendee.get("CheckInStatus", "FALSE")).upper() == "TRUE":
+        if str(attendee.get(settings.COL_CHECK_IN_STATUS, "FALSE")).upper() == "TRUE":
             return JSONResponse(
                 status_code=status.HTTP_409_CONFLICT,
-                content={"detail": "此人已簽到", "name": attendee.get("Name", "")}
+                content={"detail": "此人已簽到", "name": attendee.get(settings.COL_NAME, "")}
             )
 
-        # Perform the update
         success = gsheet_client.update_check_in_status(worksheet, request.unique_id)
         if not success:
-            # This might happen in a race condition or if the user was deleted mid-process
             raise HTTPException(status_code=500, detail="更新簽到狀態失敗")
 
         return CheckInSuccessResponse(
-            name=attendee.get("Name", ""),
-            department=attendee.get("Department", "")
+            name=attendee.get(settings.COL_NAME, ""),
+            department=attendee.get(settings.COL_DEPARTMENT, "")
         )
     except HTTPException:
         raise
     except Exception as e:
-        # Catch-all for unexpected errors
         raise HTTPException(status_code=500, detail=f"內部伺服器錯誤: {e}")
 
 
@@ -107,16 +104,16 @@ def check_out(request: CheckInRequest, api_key: str = Depends(get_api_key)):
         if not attendee:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="賓客 ID 不存在")
 
-        if str(attendee.get("CheckInStatus", "FALSE")).upper() == "FALSE":
+        if str(attendee.get(settings.COL_CHECK_IN_STATUS, "FALSE")).upper() == "FALSE":
              return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 content={"detail": "此人尚未簽到，無法簽退"}
             )
 
-        if str(attendee.get("CheckOutStatus", "FALSE")).upper() == "TRUE":
+        if str(attendee.get(settings.COL_CHECK_OUT_STATUS, "FALSE")).upper() == "TRUE":
             return JSONResponse(
                 status_code=status.HTTP_409_CONFLICT,
-                content={"detail": "此人已簽退", "name": attendee.get("Name", "")}
+                content={"detail": "此人已簽退", "name": attendee.get(settings.COL_NAME, "")}
             )
 
         success = gsheet_client.update_check_out_status(worksheet, request.unique_id)
@@ -124,8 +121,8 @@ def check_out(request: CheckInRequest, api_key: str = Depends(get_api_key)):
             raise HTTPException(status_code=500, detail="更新簽退狀態失敗")
 
         return CheckOutSuccessResponse(
-            name=attendee.get("Name", ""),
-            department=attendee.get("Department", "")
+            name=attendee.get(settings.COL_NAME, ""),
+            department=attendee.get(settings.COL_DEPARTMENT, "")
         )
     except HTTPException:
         raise

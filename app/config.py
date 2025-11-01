@@ -23,6 +23,17 @@ class Settings(BaseSettings):
     SPREADSHEET_NAME: str = "尾牙報到系統"
     WORKSHEET_NAME: str = "賓客名單"
 
+    # --- Google Sheets Column Names (for robustness) ---
+    COL_UNIQUE_ID: str = "UniqueID"
+    COL_NAME: str = "Name"
+    COL_DEPARTMENT: str = "Department"
+    COL_EMAIL: str = "Email"
+    COL_EMAIL_SENT_STATUS: str = "EmailSentStatus"
+    COL_CHECK_IN_STATUS: str = "CheckInStatus"
+    COL_CHECK_IN_TIME: str = "CheckInTime"
+    COL_CHECK_OUT_STATUS: str = "CheckOutStatus"
+    COL_CHECK_OUT_TIME: str = "CheckOutTime"
+
     @property
     def google_credentials(self) -> dict:
         """
