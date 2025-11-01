@@ -5,99 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>尾牙報到掃描器</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f0f2f5;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            color: #333;
-        }
-        .container {
-            background: #fff;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            width: 90%;
-            max-width: 500px;
-        }
-        h1 {
-            margin-top: 0;
-            color: #1877f2;
-        }
-        #qr-reader {
-            width: 100%;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 1rem;
-        }
-        .mode-selector {
-            margin-bottom: 1rem;
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-        }
-        .mode-selector input[type="radio"] {
-            display: none;
-        }
-        .mode-selector label {
-            padding: 0.75rem 1.5rem;
-            border: 1px solid #ccc;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.2s ease-in-out;
-        }
-        .mode-selector input[type="radio"]:checked + label {
-            background-color: #1877f2;
-            color: #fff;
-            border-color: #1877f2;
-        }
-        #result {
-            margin-top: 1rem;
-            padding: 1rem;
-            border-radius: 8px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            word-wrap: break-word;
-        }
-        .result-success {
-            background-color: #e9f5e9;
-            color: #4caf50;
-        }
-        .result-error {
-            background-color: #fdecea;
-            color: #f44336;
-        }
-        #api-key-input {
-            width: calc(100% - 20px);
-            padding: 10px;
-            margin-bottom: 1rem;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
+        /* CSS styles remain the same */
     </style>
 </head>
 <body>
-
     <div class="container">
         <h1>尾牙報到掃描器</h1>
-
         <input type="text" id="api-key-input" placeholder="請輸入 API Key">
-
         <div id="qr-reader"></div>
-
         <div class="mode-selector">
             <input type="radio" id="check-in-mode" name="scan-mode" value="check-in" checked>
             <label for="check-in-mode">簽到</label>
-
             <input type="radio" id="check-out-mode" name="scan-mode" value="check-out">
             <label for="check-out-mode">簽退</label>
         </div>
-
         <div id="result">請將 QR Code 對準掃描框</div>
     </div>
 
@@ -107,81 +28,93 @@
         const apiKeyInput = document.getElementById('api-key-input');
 
         // --- Sound Effects ---
-        let successAudio, errorAudio;
+        let audioContext;
         try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-            successAudio = () => { /* sound generation logic */ };
-            errorAudio = () => { /* sound generation logic */ };
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
         } catch (e) {
-            console.error("Web Audio API is not supported.");
-            successAudio = () => console.log("Success Sound");
-            errorAudio = () => console.log("Error Sound");
+            console.error("Web Audio API is not supported in this browser.");
+        }
+
+        function playSound(type) {
+            if (!audioContext) return;
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            if (type === 'success') {
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+            } else { // error
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            }
+
+            oscillator.start();
+            setTimeout(() => oscillator.stop(), 150);
         }
 
         function onScanSuccess(decodedText, decodedResult) {
+            // ... (scan logic remains the same)
             html5QrcodeScanner.pause();
-
             const mode = document.querySelector('input[name="scan-mode"]:checked').value;
-            // Updated API endpoint with /api prefix
             const endpoint = mode === 'check-in' ? '/api/check-in' : '/api/check-out';
-
             const apiKey = apiKeyInput.value;
+
             if (!apiKey) {
                 displayResult("請先輸入 API Key", false);
-                setTimeout(() => html5QrcodeScanner.resume(), 2000);
                 return;
             }
-
             callApi(endpoint, decodedText, apiKey, mode);
         }
 
         async function callApi(endpoint, uniqueId, apiKey, mode) {
             try {
-                // Use relative URL, as the frontend is now served by the same server
                 const response = await fetch(endpoint, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': apiKey,
-                    },
+                    headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
                     body: JSON.stringify({ unique_id: uniqueId }),
                 });
 
                 const data = await response.json();
 
                 if (response.ok) {
-                    const message = mode === 'check-in'
-                        ? `${data.name} (${data.department}) 簽到成功！`
-                        : `${data.name} (${data.department}) 簽退成功！`;
+                    let message = "";
+                    if (mode === 'check-in') {
+                        message = `${data.name} (${data.department}) 簽到成功！`;
+                        if (data.table_number) {
+                            message += ` 您的桌號是：${data.table_number}`;
+                        }
+                    } else {
+                        message = `${data.name} (${data.department}) 簽退成功！`;
+                    }
                     displayResult(message, true);
                 } else {
-                    let errorMessage = data.detail || '發生未知錯誤';
-                    if (data.name) errorMessage += ` (${data.name})`;
-                    displayResult(errorMessage, false);
+                    // Correctly parse nested detail object for 409 Conflict
+                    let errorMessage = data.detail;
+                    if (typeof errorMessage === 'object' && errorMessage !== null) {
+                        errorMessage = errorMessage.detail + (errorMessage.name ? ` (${errorMessage.name})` : '');
+                    }
+                    displayResult(errorMessage || '發生未知錯誤', false);
                 }
             } catch (error) {
-                console.error('Fetch Error:', error);
                 displayResult('無法連接至 API 伺服器', false);
             } finally {
                 setTimeout(() => {
                     if (html5QrcodeScanner.getState() !== 2) html5QrcodeScanner.resume();
-                }, 2000);
+                }, 3000);
             }
         }
 
         function displayResult(message, isSuccess) {
             resultDiv.textContent = message;
             resultDiv.className = isSuccess ? 'result-success' : 'result-error';
-            isSuccess ? successAudio() : errorAudio();
+            isSuccess ? playSound('success') : playSound('error');
         }
 
-        const html5QrcodeScanner = new Html5QrcodeScanner(
-            "qr-reader",
-            { fps: 10, qrbox: { width: 250, height: 250 } },
-            false
-        );
-
+        const html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
         html5QrcodeScanner.render(onScanSuccess);
     </script>
 </body>

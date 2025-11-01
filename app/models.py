@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from typing import Optional
 
 class CheckInRequest(BaseModel):
     """Request model for the check-in endpoint."""
@@ -9,6 +10,7 @@ class CheckInSuccessResponse(BaseModel):
     status: str = "success"
     name: str
     department: str
+    table_number: Optional[str] = None
 
 class CheckOutSuccessResponse(BaseModel):
     """Response model for a successful check-out."""

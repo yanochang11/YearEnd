@@ -9,10 +9,17 @@ from .dependencies import get_api_key
 from .gsheet_client import GSheetClient
 from .models import CheckInRequest, CheckInSuccessResponse, CheckOutSuccessResponse, ErrorResponse, ConflictResponse, StatusResponse
 
-app = FastAPI(title="尾牙報到/簽退 API 系統", version="2.0.0")
+app = FastAPI(title="尾牙報到/簽退 API 系統", version="2.1.0")
 api_router = APIRouter(prefix="/api")
 
-# Exception Handlers remain the same
+@app.exception_handler(gspread.exceptions.SpreadsheetNotFound)
+async def spreadsheet_not_found_handler(request, exc):
+    return JSONResponse(status_code=503, content={"detail": f"Google Sheet '{settings.SPREADSHEET_NAME}' not found."})
+
+@app.exception_handler(gspread.exceptions.WorksheetNotFound)
+async def worksheet_not_found_handler(request, exc):
+    return JSONResponse(status_code=503, content={"detail": f"Worksheet '{settings.WORKSHEET_NAME}' not found."})
+
 
 @api_router.post("/check-in", response_model=CheckInSuccessResponse, tags=["Check-in/Out"])
 def check_in(request: CheckInRequest, api_key: str = Depends(get_api_key)):
@@ -25,14 +32,18 @@ def check_in(request: CheckInRequest, api_key: str = Depends(get_api_key)):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="賓客 ID 不存在")
 
         if str(attendee.get(settings.COL_CHECK_IN_STATUS, "FALSE")).upper() == "TRUE":
-            # Use HTTPException for client errors
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={"detail": "此人已簽到", "name": attendee.get(settings.COL_NAME, "")}
             )
 
         gsheet_client.update_check_in_status(worksheet, request.unique_id)
-        return CheckInSuccessResponse(name=attendee.get(settings.COL_NAME, ""), department=attendee.get(settings.COL_DEPARTMENT, ""))
+
+        return CheckInSuccessResponse(
+            name=attendee.get(settings.COL_NAME, ""),
+            department=attendee.get(settings.COL_DEPARTMENT, ""),
+            table_number=attendee.get(settings.COL_TABLE_NUMBER)
+        )
     except HTTPException:
         raise
     except Exception as e:
@@ -66,7 +77,6 @@ def check_out(request: CheckInRequest, api_key: str = Depends(get_api_key)):
 
 @api_router.get("/status", response_model=StatusResponse, tags=["Status"])
 def get_status(api_key: str = Depends(get_api_key)):
-    # ... (get_status remains the same as it only has success path)
     try:
         gsheet_client = GSheetClient.from_settings()
         worksheet = gsheet_client.get_worksheet(settings.WORKSHEET_NAME)
@@ -75,7 +85,6 @@ def get_status(api_key: str = Depends(get_api_key)):
         raise
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"內部伺服器錯誤: {e}")
-
 
 app.include_router(api_router)
 static_files_path = Path(__file__).parent / "static"

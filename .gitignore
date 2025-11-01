@@ -11,3 +11,6 @@ service_account.json
 .idea/
 .vscode/
 .DS_Store
+
+# Log files
+*.log

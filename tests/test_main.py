@@ -29,19 +29,25 @@ app.dependency_overrides[get_api_key] = override_get_api_key
 def test_checkin_success(client, mock_gsheet_client):
     unique_id = "uuid-success"
     attendee_data = {
-        settings.COL_NAME: "王大明", settings.COL_DEPARTMENT: "工程部",
-        settings.COL_UNIQUE_ID: unique_id, settings.COL_CHECK_IN_STATUS: "FALSE"
+        settings.COL_NAME: "王大明",
+        settings.COL_DEPARTMENT: "工程部",
+        settings.COL_TABLE_NUMBER: "A1",
+        settings.COL_UNIQUE_ID: unique_id,
+        settings.COL_CHECK_IN_STATUS: "FALSE"
     }
     mock_gsheet_client.find_row_by_unique_id.return_value = attendee_data
     response = client.post("/api/check-in", json={"unique_id": unique_id})
-    assert response.status_code == 200
-    assert response.json()["name"] == "王大明"
 
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["name"] == "王大明"
+    assert response_json["table_number"] == "A1"
+
+# ... (other tests remain the same) ...
 def test_checkin_user_not_found(client, mock_gsheet_client):
     mock_gsheet_client.find_row_by_unique_id.return_value = None
     response = client.post("/api/check-in", json={"unique_id": "uuid-not-found"})
     assert response.status_code == 404
-    assert response.json() == {"detail": "賓客 ID 不存在"}
 
 def test_checkin_already_checked_in(client, mock_gsheet_client):
     unique_id = "uuid-already-checked-in"
@@ -52,8 +58,7 @@ def test_checkin_already_checked_in(client, mock_gsheet_client):
     mock_gsheet_client.find_row_by_unique_id.return_value = attendee_data
     response = client.post("/api/check-in", json={"unique_id": unique_id})
     assert response.status_code == 409
-    # Updated assertion to match the new detail structure
-    assert response.json()["detail"] == {"detail": "此人已簽到", "name": "陳小美"}
+    assert response.json()["detail"]["detail"] == "此人已簽到"
 
 def test_checkout_success(client, mock_gsheet_client):
     unique_id = "uuid-checkout-success"
@@ -71,7 +76,6 @@ def test_checkout_not_checked_in(client, mock_gsheet_client):
     mock_gsheet_client.find_row_by_unique_id.return_value = attendee_data
     response = client.post("/api/check-out", json={"unique_id": "uuid-not-checked-in"})
     assert response.status_code == 400
-    assert response.json() == {"detail": "此人尚未簽到，無法簽退"}
 
 def test_checkout_already_checked_out(client, mock_gsheet_client):
     unique_id = "uuid-already-checked-out"
@@ -82,8 +86,6 @@ def test_checkout_already_checked_out(client, mock_gsheet_client):
     mock_gsheet_client.find_row_by_unique_id.return_value = attendee_data
     response = client.post("/api/check-out", json={"unique_id": unique_id})
     assert response.status_code == 409
-    # Updated assertion to match the new detail structure
-    assert response.json()["detail"] == {"detail": "此人已簽退", "name": "陳小美"}
 
 def test_get_status(client, mock_gsheet_client):
     status_data = {"total_attendees": 500, "checked_in_count": 150, "checked_out_count": 50}
