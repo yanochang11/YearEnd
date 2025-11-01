@@ -5,6 +5,12 @@ from datetime import datetime, timezone
 
 from .config import settings
 
+# Define the necessary scopes
+SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive.readonly"  # .readonly is sufficient for finding files
+]
+
 class GSheetClient:
     """A client to interact with Google Sheets."""
 
@@ -14,7 +20,7 @@ class GSheetClient:
         """
         self.creds = Credentials.from_service_account_info(
             credentials,
-            scopes=["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
+            scopes=SCOPES
         )
         self.client = gspread.authorize(self.creds)
         self.spreadsheet = self.client.open(spreadsheet_name)

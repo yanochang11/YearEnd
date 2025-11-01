@@ -11,6 +11,12 @@ import gspread
 from google.oauth2.service_account import Credentials
 from app.config import settings
 
+# Define the necessary scopes for the setup script
+SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"  # Full drive access is needed to create and manage files
+]
+
 def setup_database():
     """
     Initializes the Google Sheet database from a local CSV file.
@@ -19,7 +25,7 @@ def setup_database():
     try:
         creds = Credentials.from_service_account_info(
             settings.google_credentials,
-            scopes=["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
+            scopes=SCOPES
         )
         client = gspread.authorize(creds)
     except Exception as e:
