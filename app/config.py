@@ -19,9 +19,10 @@ class Settings(BaseSettings):
     # API Security Key
     API_KEY: str = "your_default_api_key"
 
-    # Gmail credentials for sending QR codes
-    GMAIL_SENDER: str = ""
-    GMAIL_APP_PASSWORD: str = ""
+    # --- Mailgun Configuration ---
+    MAILGUN_API_KEY: str = ""
+    MAILGUN_DOMAIN: str = ""
+    MAILGUN_SENDER_EMAIL: str = "QR Code System <noreply@your-mailgun-domain.com>"
 
     # Google Sheets configuration
     SPREADSHEET_NAME: str = "尾牙報到系統"

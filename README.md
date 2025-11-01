@@ -4,35 +4,23 @@
 
 ## 🚀 專案設定指南 (新流程)
 
-**重要：** 為了確保系統的穩定性並避免 Google API 的配額問題，我們將採用「**由您建立檔案，由程式讀寫**」的最佳實踐模式。
+### 步驟 1: 設定 Mailgun (用於寄送 QR Code)
 
-### 步驟 1: 手動建立 Google Sheet
+**為什麼使用 Mailgun？** 直接使用 Gmail 大量寄信，帳號很容易被封鎖。Mailgun 是專業的郵件服務，能確保您的 QR Code 信件穩定送達。
 
-1.  前往您的個人 [Google Drive](https://drive.google.com/)。
-2.  建立一個**全新的、空白的** Google 試算表。
-3.  將其命名為 `尾牙報到系統` (或您希望在 `.env` 中設定的任何名稱)。
+1.  **註冊 Mailgun 帳戶**：前往 [Mailgun](https://www.mailgun.com/) 官網註冊一個免費帳戶。
+2.  **新增並驗證您的網域**：
+    - 登入後，在左側選單進入 `Sending` > `Domains` > `Add New Domain`。
+    - 輸入您擁有的一個網域名稱 (例如 `mg.yourcompany.com`)。**Mailgun 的免費方案需要您使用自己的網域**。
+    - Mailgun 會提供數個 DNS 紀錄 (TXT, CNAME, MX)，請您到您的網域供應商 (例如 GoDaddy, Cloudflare) 的後台，完成這些 DNS 設定。
+    - 等待幾分鐘到數小時，直到 Mailgun 的儀表板顯示您的網域已成功驗證 (Verified)。
+3.  **取得 API Key 與 Domain Name**：
+    - 在左側選單進入 `Settings` > `API Keys`。
+    - 找到您的 **Private API key** (通常以 `key-` 開頭)，並將其複製下來。
+    - 您的 **Domain Name** 就是您在第 2 步中驗證的網域。
 
-### 步驟 2: 取得 GCP 服務帳戶金鑰
-
-1.  **啟用 API**：
-    - 前往 [Google Cloud Console API Library](https://console.cloud.google.com/apis/library)。
-    - 請搜尋並啟用以下兩個 API：
-        - **Google Sheets API**
-        - **Google Drive API**
-2.  **建立服務帳戶**並**產生金鑰** (詳細步驟請參考舊版 README)。
-3.  您會下載一個 `service_account.json` 檔案。
-
-### 步驟 3: 分享 Google Sheet 給服務帳戶
-
-1.  打開您剛剛下載的 `service_account.json` 檔案。
-2.  複製 `client_email` 欄位的值 (例如 `...gserviceaccount.com`)。
-3.  回到您在**步驟 1** 中建立的 Google Sheet。
-4.  點擊右上角的 **共用 (Share)** 按鈕。
-5.  將 `client_email` 的值貼上，並確保給予 **編輯者 (Editor)** 權限。
-
-### 步驟 4: (可選) 取得 Gmail 應用程式密碼
-如果您需要使用 QR Code 郵件寄送功能，請完成此步驟。
-... (此處內容與前一版本相同) ...
+### 步驟 2: 設定 Google Sheets (用於儲存資料)
+... (此處內容與前一版本相同，指導使用者手動建立 Sheet 並分享) ...
 
 ---
 
@@ -43,17 +31,29 @@
 
 ### 2. 設定環境變數
 
-1.  將 `.env.example` 複製為 `.env`。
-2.  編輯 `.env` 檔案，填入您的 `GOOGLE_SERVICE_ACCOUNT_JSON_BASE64`、`API_KEY` 等資訊。
-    - **請確保 `SPREADSHEET_NAME` 的值與您在步驟 1 中建立的檔案名稱完全一致。**
-    - `GOOGLE_ACCOUNT_EMAIL_TO_SHARE` 這個變數已不再需要。
+將 `.env.example` 複製為 `.env`，並填入您從各大平台取得的金鑰：
 
-### 3. 執行資料庫初始化腳本
+```ini
+# ... Google Cloud 相關設定 ...
 
-現在，您可以安全地執行初始化腳本。它會找到您分享給它的檔案，並將 `attendees.csv` 的資料寫入其中。
+# --- Mailgun Configuration ---
+MAILGUN_API_KEY=key-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+MAILGUN_DOMAIN=mg.yourcompany.com
+MAILGUN_SENDER_EMAIL="[您的公司] 尾牙籌備組 <event@mg.yourcompany.com>"
 
-```bash
-python scripts/1_setup_database.py
+# --- API Security & Google Sheet Name ---
+API_KEY=my-super-secret-key
+SPREADSHEET_NAME=尾牙報到系統
+...
 ```
 
-... (文件其餘部分與新流程保持一致) ...
+### 3. 執行腳本
+
+```bash
+# 步驟 1: 初始化 Google Sheets 資料庫
+python scripts/1_setup_database.py
+
+# 步驟 2: 透過 Mailgun 寄送 QR Code 給賓客
+python scripts/2_send_qr_codes.py
+```
+... (文件其餘部分保持不變) ...
