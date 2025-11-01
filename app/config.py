@@ -8,7 +8,9 @@ class Settings(BaseSettings):
     Manages application settings using environment variables.
     Reads from a .env file for local development.
     """
-    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8')
+    # Configure Pydantic to ignore extra fields from the environment
+    # This prevents errors if old variables (like GMAIL_*) are still in the .env file
+    model_config = SettingsConfigDict(env_file='.env', env_file_encoding='utf-8', extra='ignore')
 
     # Google Cloud Service Account JSON, base64 encoded
     GOOGLE_SERVICE_ACCOUNT_JSON_BASE64: str = ""
