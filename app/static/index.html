@@ -8,61 +8,54 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: #f0f2f5;
-            margin: 0;
-            color: #333;
-            transition: background-color 0.2s ease-in-out;
-        }
-        .container {
             display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            flex-direction: column; /* Main axis is vertical */
+            align-items: center; /* Center items horizontally */
+            justify-content: space-between; /* Space out items vertically */
             height: 100vh;
+            margin: 0;
             padding: 1rem;
             box-sizing: border-box;
+            color: #333;
         }
-        h1 { margin-top: 0; color: #1877f2; text-align: center; }
-        #qr-reader { width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid #ddd; }
-        .mode-selector { display: flex; justify-content: center; gap: 1rem; margin: 1rem 0; }
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: #fff;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        h1 { margin-top: 0; color: #1877f2; }
+        #qr-reader { width: 100%; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
+        .mode-selector { display: flex; justify-content: center; gap: 1rem; margin-bottom: 1rem; }
         .mode-selector input[type="radio"] { display: none; }
-        .mode-selector label {
-            padding: 0.75rem 1.5rem;
-            border: 1px solid #ccc;
-            border-radius: 25px;
-            cursor: pointer;
-            transition: all 0.2s ease-in-out;
-        }
-        .mode-selector input[type="radio"]:checked + label {
-            background-color: #1877f2;
-            color: #fff;
-            border-color: #1877f2;
-        }
+        .mode-selector label { padding: 0.75rem 1.5rem; border: 1px solid #ccc; border-radius: 25px; cursor: pointer; transition: all 0.2s ease-in-out; }
+        .mode-selector input[type="radio"]:checked + label { background-color: #1877f2; color: #fff; border-color: #1877f2; }
+
         #result {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            right: 1rem;
             padding: 1.5rem;
             border-radius: 12px;
             font-size: 1.5rem;
             font-weight: bold;
             text-align: center;
-            word-wrap: break-word;
             color: #fff;
-            visibility: hidden;
-            position: fixed; /* Keep it at the top */
-            top: 1rem;
-            left: 1rem;
-            right: 1rem;
             z-index: 1000;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s, opacity 0.5s linear;
         }
-        .result-visible { visibility: visible; }
+        .result-visible { visibility: visible; opacity: 1; }
         .result-success { background-color: #4caf50; }
         .result-error { background-color: #f44336; }
 
-        #api-key-input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            box-sizing: border-box;
-            margin-top: 1rem;
-        }
+        .footer { width: 100%; max-width: 500px; margin-top: 1rem; }
+        #api-key-input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
 
         @keyframes flash-success { 0% { background-color: #4caf50; } 100% { background-color: #f0f2f5; } }
         @keyframes flash-error { 0% { background-color: #f44336; } 100% { background-color: #f0f2f5; } }
@@ -71,18 +64,18 @@
     </style>
 </head>
 <body>
+    <div id="result"></div>
     <div class="container">
-        <div id="result"></div>
-        <div>
-            <h1>尾牙報到掃描器</h1>
-            <div id="qr-reader"></div>
-            <div class="mode-selector">
-                <input type="radio" id="check-in-mode" name="scan-mode" value="check-in" checked>
-                <label for="check-in-mode">簽到</label>
-                <input type="radio" id="check-out-mode" name="scan-mode" value="check-out">
-                <label for="check-out-mode">簽退</label>
-            </div>
+        <h1>尾牙報到掃描器</h1>
+        <div id="qr-reader"></div>
+        <div class="mode-selector">
+            <input type="radio" id="check-in-mode" name="scan-mode" value="check-in" checked>
+            <label for="check-in-mode">簽到</label>
+            <input type="radio" id="check-out-mode" name="scan-mode" value="check-out">
+            <label for="check-out-mode">簽退</label>
         </div>
+    </div>
+    <div class="footer">
         <input type="text" id="api-key-input" placeholder="請在此輸入 API Key">
     </div>
 
@@ -91,10 +84,9 @@
         const resultDiv = document.getElementById('result');
         const apiKeyInput = document.getElementById('api-key-input');
         const bodyEl = document.body;
-
         let audioContext;
         try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); }
-        catch (e) { console.error("Web Audio API not supported."); }
+        catch (e) { console.error("Web Audio API is not supported."); }
 
         function playSound(type) {
             if (!audioContext) return;
@@ -102,7 +94,6 @@
             const gainNode = audioContext.createGain();
             oscillator.connect(gainNode);
             gainNode.connect(audioContext.destination);
-
             if (type === 'success') {
                 oscillator.type = 'sine';
                 oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
@@ -161,7 +152,6 @@
 
         function displayResult(message, isSuccess) {
             resultDiv.textContent = message;
-            resultDiv.classList.add('result-visible');
             resultDiv.className = isSuccess ? 'result-visible result-success' : 'result-visible result-error';
             const flashClass = isSuccess ? 'body-flash-success' : 'body-flash-error';
             bodyEl.classList.add(flashClass);
