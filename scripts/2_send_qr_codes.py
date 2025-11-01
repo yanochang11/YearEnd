@@ -15,8 +15,8 @@ def send_qr_code_emails_mailgun():
     """
     Reads the guest list, generates QR codes, and emails them using the Mailgun API.
     """
-    if not all([settings.MAILGUN_API_KEY, settings.MAILGUN_DOMAIN]):
-        print("錯誤：尚未設定 MAILGUN_API_KEY 和 MAILGUN_DOMAIN。請檢查您的 .env 檔案。")
+    if not all([settings.MAILGUN_API_KEY, settings.MAILGUN_DOMAIN, settings.MAILGUN_API_BASE_URL]):
+        print("錯誤：尚未完整設定 Mailgun。請檢查 .env 檔案中的 MAILGUN_API_KEY, MAILGUN_DOMAIN, 和 MAILGUN_API_BASE_URL。")
         return
 
     print("正在連接 Google Sheets...")
@@ -41,7 +41,8 @@ def send_qr_code_emails_mailgun():
 
     print(f"找到 {len(attendees_to_email)} 位賓客需要寄送報到憑證...")
 
-    mailgun_api_url = f"https://api.mailgun.net/v3/{settings.MAILGUN_DOMAIN}/messages"
+    # Use the configurable base URL
+    mailgun_api_url = f"{settings.MAILGUN_API_BASE_URL.rstrip('/')}/{settings.MAILGUN_DOMAIN}/messages"
     sent_count = 0
 
     for attendee in attendees_to_email:
@@ -55,13 +56,11 @@ def send_qr_code_emails_mailgun():
 
         print(f"正在處理 '{name}' ({email})...")
 
-        # --- Generate QR Code in memory ---
         qr_img = qrcode.make(unique_id)
         img_byte_arr = BytesIO()
         qr_img.save(img_byte_arr, format='PNG')
         img_byte_arr.seek(0)
 
-        # --- Prepare Email Body ---
         html_body = f"""
         <html><body>
             <p>Hi {name},</p>
@@ -72,7 +71,6 @@ def send_qr_code_emails_mailgun():
         </body></html>
         """
 
-        # --- Send Email via Mailgun API ---
         try:
             response = requests.post(
                 mailgun_api_url,
@@ -85,11 +83,10 @@ def send_qr_code_emails_mailgun():
                     "html": html_body
                 }
             )
-            response.raise_for_status()  # Will raise an HTTPError for bad responses (4xx or 5xx)
+            response.raise_for_status()
 
             print(f"  -> Email 寄送成功。")
 
-            # --- Update Google Sheet ---
             uid_col_header = settings.COL_UNIQUE_ID
             status_col_header = settings.COL_EMAIL_SENT_STATUS
 
