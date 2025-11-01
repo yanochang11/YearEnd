@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+gspread
+google-auth-oauthlib
+qrcode[pil]
+pydantic-settings
+pytest
+pytest-mock
+requests
+python-dotenv
+httpx
