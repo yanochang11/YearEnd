@@ -11,7 +11,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from app.config import settings
 
-# Define the necessary scopes for the setup script
+# Define the necessary scopes
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -19,7 +19,7 @@ SCOPES = [
 
 def setup_database():
     """
-    Initializes the Google Sheet database from a local CSV file.
+    Initializes a user-created Google Sheet with attendee data from a local CSV file.
     """
     print("正在連接 Google Sheets...")
     try:
@@ -33,27 +33,26 @@ def setup_database():
         return
 
     try:
-        print(f"正在建立或開啟試算表：'{settings.SPREADSHEET_NAME}'...")
+        print(f"正在開啟試算表：'{settings.SPREADSHEET_NAME}'...")
         spreadsheet = client.open(settings.SPREADSHEET_NAME)
     except gspread.exceptions.SpreadsheetNotFound:
-        spreadsheet = client.create(settings.SPREADSHEET_NAME)
-        print(f"試算表 '{settings.SPREADSHEET_NAME}' 建立成功！")
-
-        # Share the newly created spreadsheet if an email is provided
-        if settings.GOOGLE_ACCOUNT_EMAIL_TO_SHARE:
-            print(f"正在將試算表分享給：{settings.GOOGLE_ACCOUNT_EMAIL_TO_SHARE}...")
-            try:
-                spreadsheet.share(settings.GOOGLE_ACCOUNT_EMAIL_TO_SHARE, perm_type='user', role='writer')
-                print("分享成功！")
-            except Exception as e:
-                print(f"警告：分享試算表時發生錯誤。請手動檢查權限設定。 ({e})")
+        print("\n錯誤：找不到指定的試算表！")
+        print("請依照以下步驟操作：")
+        print("1. 請親自在您的 Google Drive 中，建立一個新的、空白的 Google 試算表。")
+        print(f"2. 將其命名為：'{settings.SPREADSHEET_NAME}'")
+        print("3. 點擊右上角的「共用」按鈕。")
+        print(f"4. 將它分享給您的服務帳戶 Email (可在 service_account.json 中找到 'client_email')，並給予「編輯者」權限。")
+        return
+    except gspread.exceptions.APIError as e:
+        print(f"錯誤：存取 Google Sheet 時發生 API 錯誤。請檢查您的權限設定。({e})")
+        return
 
     try:
         worksheet = spreadsheet.worksheet(settings.WORKSHEET_NAME)
         print(f"警告：工作表 '{settings.WORKSHEET_NAME}' 已存在，將清空並重新寫入資料。")
         worksheet.clear()
     except gspread.exceptions.WorksheetNotFound:
-        print(f"正在建立工作表：'{settings.WORKSHEET_NAME}'...")
+        print(f"正在建立新的工作表：'{settings.WORKSHEET_NAME}'...")
         worksheet = spreadsheet.add_worksheet(title=settings.WORKSHEET_NAME, rows="100", cols="20")
 
     csv_path = project_root / 'attendees.csv'

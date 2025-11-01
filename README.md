@@ -2,10 +2,36 @@
 
 這是一個專為中小型活動設計的輕量級、易於部署的 QR Code 報到/簽退系統。它使用 FastAPI 作為後端，Google Sheets 作為資料庫，並提供一個純前端的 HTML 掃描器。
 
-## ✨ 功能特色
-... (此處內容與前一版本相同) ...
+## 🚀 專案設定指南 (新流程)
 
-## 🚀 專案設定指南
+**重要：** 為了確保系統的穩定性並避免 Google API 的配額問題，我們將採用「**由您建立檔案，由程式讀寫**」的最佳實踐模式。
+
+### 步驟 1: 手動建立 Google Sheet
+
+1.  前往您的個人 [Google Drive](https://drive.google.com/)。
+2.  建立一個**全新的、空白的** Google 試算表。
+3.  將其命名為 `尾牙報到系統` (或您希望在 `.env` 中設定的任何名稱)。
+
+### 步驟 2: 取得 GCP 服務帳戶金鑰
+
+1.  **啟用 API**：
+    - 前往 [Google Cloud Console API Library](https://console.cloud.google.com/apis/library)。
+    - 請搜尋並啟用以下兩個 API：
+        - **Google Sheets API**
+        - **Google Drive API**
+2.  **建立服務帳戶**並**產生金鑰** (詳細步驟請參考舊版 README)。
+3.  您會下載一個 `service_account.json` 檔案。
+
+### 步驟 3: 分享 Google Sheet 給服務帳戶
+
+1.  打開您剛剛下載的 `service_account.json` 檔案。
+2.  複製 `client_email` 欄位的值 (例如 `...gserviceaccount.com`)。
+3.  回到您在**步驟 1** 中建立的 Google Sheet。
+4.  點擊右上角的 **共用 (Share)** 按鈕。
+5.  將 `client_email` 的值貼上，並確保給予 **編輯者 (Editor)** 權限。
+
+### 步驟 4: (可選) 取得 Gmail 應用程式密碼
+如果您需要使用 QR Code 郵件寄送功能，請完成此步驟。
 ... (此處內容與前一版本相同) ...
 
 ---
@@ -17,40 +43,17 @@
 
 ### 2. 設定環境變數
 
-1.  將您下載的 GCP 服務帳戶 `.json` 檔案重新命名為 `service_account.json` 並放在專案根目錄。
-2.  將 `.env.example` 複製為 `.env`：`cp .env.example .env`
-3.  編輯 `.env` 檔案：
-    ```ini
-    # 將 service_account.json 內容轉換為 Base64 字串
-    # Linux/macOS: base64 -i service_account.json
-    GOOGLE_SERVICE_ACCOUNT_JSON_BASE64=...
+1.  將 `.env.example` 複製為 `.env`。
+2.  編輯 `.env` 檔案，填入您的 `GOOGLE_SERVICE_ACCOUNT_JSON_BASE64`、`API_KEY` 等資訊。
+    - **請確保 `SPREADSHEET_NAME` 的值與您在步驟 1 中建立的檔案名稱完全一致。**
+    - `GOOGLE_ACCOUNT_EMAIL_TO_SHARE` 這個變數已不再需要。
 
-    # (強烈建議) 您的個人 Google 帳號 Email
-    # 如果設定此項，初始化腳本會自動將建立的 Google Sheet 分享給您，
-    # 方便您直接在 Google Drive 中查看和管理，並避免因儲存配額問題導致錯誤。
-    GOOGLE_ACCOUNT_EMAIL_TO_SHARE=your-email@gmail.com
+### 3. 執行資料庫初始化腳本
 
-    # 您的 Gmail 帳號與 16 位元應用程式密碼
-    GMAIL_SENDER=your-email@gmail.com
-    GMAIL_APP_PASSWORD=your16charapppassword
-    ...
-    ```
+現在，您可以安全地執行初始化腳本。它會找到您分享給它的檔案，並將 `attendees.csv` 的資料寫入其中。
 
-... (文件其餘部分與前一版本相同) ...
-
----
-
-## ☁️ 部署指南
-
-### 後端部署 (Render)
-... (步驟 1-4 與前一版本相同) ...
-
-5.  點擊 **Advanced Settings**，設定環境變數：
-    - **Environment Variables**:
-        - `GOOGLE_SERVICE_ACCOUNT_JSON_BASE64`: (您的 Base64 編碼金鑰)
-        - **(建議)** `GOOGLE_ACCOUNT_EMAIL_TO_SHARE`: `your-email@gmail.com`
-        - `GMAIL_SENDER`: `your-email@gmail.com`
-        ...
-
-... (文件其餘部分與前一版本相同) ...
+```bash
+python scripts/1_setup_database.py
 ```
+
+... (文件其餘部分與新流程保持一致) ...
