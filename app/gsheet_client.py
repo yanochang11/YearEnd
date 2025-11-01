@@ -14,7 +14,7 @@ class GSheetClient:
         """
         self.creds = Credentials.from_service_account_info(
             credentials,
-            scopes=["https://www.googleapis.com/auth/spreadsheets"]
+            scopes=["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
         )
         self.client = gspread.authorize(self.creds)
         self.spreadsheet = self.client.open(spreadsheet_name)

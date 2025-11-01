@@ -19,7 +19,7 @@ def setup_database():
     try:
         creds = Credentials.from_service_account_info(
             settings.google_credentials,
-            scopes=["https://www.googleapis.com/auth/spreadsheets"]
+            scopes=["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
         )
         client = gspread.authorize(creds)
     except Exception as e:
