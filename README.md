@@ -26,7 +26,16 @@
 ## 🚀 專案設定指南
 
 ### 步驟 1: 設定 Mailgun (用於寄送 QR Code)
-... (詳細步驟請參考前一版本的文件) ...
+
+1.  **註冊 Mailgun 帳戶**：前往 [Mailgun](https://www.mailgun.com/) 官網註冊一個免費帳戶。
+2.  **新增並驗證您的網域**：
+    - 登入後，在左側選單進入 `Sending` > `Domains` > `Add New Domain`。
+    - 輸入您擁有的一個網域名稱 (例如 `mg.yourcompany.com`)。
+    - Mailgun 會提供數個 DNS 紀錄，請您到您的網域供應商後台完成設定。
+3.  **取得 API Key, Domain Name, 與 API URL**：
+    - 進入 `Settings` > `API Keys`，複製您的 **Private API key**。
+    - 您的 **Domain Name** 就是您驗證的網域。
+    - 檢查您的 **API Base URL** (美國區為 `https://api.mailgun.net/v3`，歐盟區為 `https://api.eu.mailgun.net/v3`)。
 
 ### 步驟 2: 設定 Google Sheets (用於儲存資料)
 
@@ -34,7 +43,7 @@
     -   前往您的個人 [Google Drive](https://drive.google.com/)，建立一個**全新的、空白的** Google 試算表。
     -   將其命名為 `尾牙報到系統`。
 2.  **取得 GCP 服務帳戶金鑰**：
-    -   啟用 **Google Sheets API** 和 **Google Drive API**。
+    -   在 [Google Cloud Console](https://console.cloud.google.com/) 中，啟用 **Google Sheets API** 和 **Google Drive API**。
     -   建立一個服務帳戶並給予 **編輯者** 角色。
     -   產生一個 **JSON** 格式的金鑰並下載。
 3.  **分享 Google Sheet 給服務帳戶**：
@@ -47,8 +56,7 @@
 
 ### 1. 準備賓客名單 (`attendees.csv`)
 
-在執行腳本之前，請先編輯 `attendees.csv` 檔案。請確保檔案中包含以下欄位，特別是新增的 `TableNumber`：
-
+在執行腳本之前，請先編輯 `attendees.csv` 檔案。請確保檔案中包含以下欄位：
 - `EmployeeID`
 - `Name`
 - `Department`
@@ -57,9 +65,7 @@
 
 ### 2. 設定環境變數 (`.env`)
 
-將 `.env.example` 複製為 `.env`，並填入您的所有金鑰與設定。
-
-**注意：** 如果您希望在 Google Sheet 中使用不同的欄位名稱（例如，將 `TableNumber` 改為 `桌號`），您可以在 `.env` 檔案中修改 `COL_TABLE_NUMBER` 的值。
+將 `.env.example` 複製為 `.env`，並填入您的所有金鑰與設定。如果您希望在 Google Sheet 中使用不同的欄位名稱（例如，將 `TableNumber` 改為 `桌號`），您可以在 `.env` 檔案中修改 `COL_TABLE_NUMBER` 的值。
 
 ### 3. 執行初始化與郵寄腳本
 
@@ -92,7 +98,7 @@ uvicorn app.main:app --reload
     - **Build Command**: `pip install -r requirements.txt`
     - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 3.  在 **Environment** 標籤頁中，設定您在 `.env` 中使用的所有環境變數。
-4.  點擊 **Create Web Service**。部署完成後，訪問 Render 提供的網址即可看到掃描器介面。
+4.  點擊 **Create Web Service**。
 
 ---
 
