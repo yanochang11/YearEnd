@@ -34,7 +34,11 @@ def check_in(request: CheckInRequest, api_key: str = Depends(get_api_key)):
         if str(attendee.get(settings.COL_CHECK_IN_STATUS, "FALSE")).upper() == "TRUE":
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail={"detail": "此人已簽到", "name": attendee.get(settings.COL_NAME, "")}
+                detail={
+                    "detail": "此人已簽到",
+                    "name": attendee.get(settings.COL_NAME, ""),
+                    "table_number": attendee.get(settings.COL_TABLE_NUMBER)
+                }
             )
 
         gsheet_client.update_check_in_status(worksheet, request.unique_id)

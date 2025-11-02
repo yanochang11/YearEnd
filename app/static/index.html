@@ -162,7 +162,10 @@
                     showNotification(message, true);
                 } else {
                     let errorMessage = data.detail;
-                    if (typeof errorMessage === 'object' && errorMessage !== null) {
+                    // Handle the specific case of "already checked in"
+                    if (response.status === 409 && typeof errorMessage === 'object' && errorMessage.table_number) {
+                        errorMessage = `${errorMessage.name} 已簽到，您的桌號是：${errorMessage.table_number}`;
+                    } else if (typeof errorMessage === 'object' && errorMessage !== null) {
                         errorMessage = errorMessage.detail + (errorMessage.name ? ` (${errorMessage.name})` : '');
                     }
                     showNotification(errorMessage || '發生未知錯誤', false);
