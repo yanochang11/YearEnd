@@ -30,41 +30,32 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             text-align: center;
         }
-        h1 { margin-top: 0; color: #1877f2; }
+        h1 {
+            margin-top: 0;
+            color: #1877f2;
+            transition: color 0.5s ease;
+            font-size: 1.5rem; /* Adjust font size for longer messages */
+            min-height: 84px; /* Reserve space to prevent layout shift */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #status-title.title-success { color: #388e3c; } /* Darker Green */
+        #status-title.title-error { color: #d32f2f; } /* Darker Red */
+
         #qr-reader { width: 100%; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
         .mode-selector { display: flex; justify-content: center; gap: 1rem; margin-bottom: 1rem; }
         .mode-selector input[type="radio"] { display: none; }
         .mode-selector label { padding: 0.75rem 1.5rem; border: 1px solid #ccc; border-radius: 25px; cursor: pointer; transition: all 0.2s ease-in-out; }
         .mode-selector input[type="radio"]:checked + label { background-color: #1877f2; color: #fff; border-color: #1877f2; }
 
-        #result {
-            position: fixed;
-            top: 1rem;
-            left: 1rem;
-            right: 1rem;
-            padding: 1.5rem;
-            border-radius: 12px;
-            font-size: 1.5rem;
-            font-weight: bold;
-            text-align: center;
-            color: #fff;
-            z-index: 1000;
-            visibility: hidden;
-            opacity: 0;
-            transition: visibility 0s, opacity 0.5s linear;
-        }
-        .result-visible { visibility: visible; opacity: 1; }
-        .result-success { background-color: #388e3c; } /* Darker Green */
-        .result-error { background-color: #d32f2f; } /* Darker Red */
-
         .footer { width: 100%; max-width: 500px; margin-top: 1rem; }
         #api-key-input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
     </style>
 </head>
 <body>
-    <div id="result"></div>
     <div class="container">
-        <h1>尾牙報到掃描器</h1>
+        <h1 id="status-title">尾牙報到掃描器</h1>
         <div id="qr-reader"></div>
         <div class="mode-selector">
             <input type="radio" id="check-in-mode" name="scan-mode" value="check-in" checked>
@@ -79,9 +70,10 @@
 
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
     <script>
-        const resultDiv = document.getElementById('result');
+        const statusTitle = document.getElementById('status-title');
         const apiKeyInput = document.getElementById('api-key-input');
         const bodyEl = document.body;
+        const originalTitle = statusTitle.textContent;
         let audioContext;
         let notificationTimer;
 
@@ -110,13 +102,15 @@
         function showNotification(message, isSuccess) {
             clearTimeout(notificationTimer); // Clear any existing timer
 
-            resultDiv.textContent = message;
-            resultDiv.className = isSuccess ? 'result-visible result-success' : 'result-visible result-error';
+            statusTitle.textContent = message;
+            const titleClass = isSuccess ? 'title-success' : 'title-error';
+            statusTitle.className = titleClass;
             bodyEl.className = isSuccess ? 'body-success' : 'body-error';
             playSound(isSuccess ? 'success' : 'error');
 
             notificationTimer = setTimeout(() => {
-                resultDiv.classList.remove('result-visible', 'result-success', 'result-error');
+                statusTitle.textContent = originalTitle;
+                statusTitle.className = '';
                 bodyEl.className = '';
                 if (html5QrcodeScanner.getState() !== 2) { // 2 is SCANNING state
                     html5QrcodeScanner.resume();
