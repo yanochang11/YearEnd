@@ -17,7 +17,10 @@
             padding: 1rem;
             box-sizing: border-box;
             color: #333;
+            transition: background-color 0.5s ease;
         }
+        .body-success { background-color: #4caf50; }
+        .body-error { background-color: #f44336; }
         .container {
             width: 100%;
             max-width: 500px;
@@ -56,11 +59,6 @@
 
         .footer { width: 100%; max-width: 500px; margin-top: 1rem; }
         #api-key-input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-
-        @keyframes flash-success { 0% { background-color: #4caf50; } 100% { background-color: #f0f2f5; } }
-        @keyframes flash-error { 0% { background-color: #f44336; } 100% { background-color: #f0f2f5; } }
-        .body-flash-success { animation: flash-success 1s ease-out; }
-        .body-flash-error { animation: flash-error 0.5s ease-out; }
     </style>
 </head>
 <body>
@@ -85,6 +83,8 @@
         const apiKeyInput = document.getElementById('api-key-input');
         const bodyEl = document.body;
         let audioContext;
+        let notificationTimer;
+
         try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); }
         catch (e) { console.error("Web Audio API is not supported."); }
 
@@ -107,17 +107,31 @@
             setTimeout(() => oscillator.stop(), 150);
         }
 
+        function showNotification(message, isSuccess) {
+            clearTimeout(notificationTimer); // Clear any existing timer
+
+            resultDiv.textContent = message;
+            resultDiv.className = isSuccess ? 'result-visible result-success' : 'result-visible result-error';
+            bodyEl.className = isSuccess ? 'body-success' : 'body-error';
+            playSound(isSuccess ? 'success' : 'error');
+
+            notificationTimer = setTimeout(() => {
+                resultDiv.classList.remove('result-visible', 'result-success', 'result-error');
+                bodyEl.className = '';
+                if (html5QrcodeScanner.getState() !== 2) { // 2 is SCANNING state
+                    html5QrcodeScanner.resume();
+                }
+            }, 3000);
+        }
+
         function onScanSuccess(decodedText, decodedResult) {
             html5QrcodeScanner.pause();
             const mode = document.querySelector('input[name="scan-mode"]:checked').value;
             const endpoint = mode === 'check-in' ? '/api/check-in' : '/api/check-out';
             const apiKey = apiKeyInput.value;
+
             if (!apiKey) {
-                displayResult("請先輸入 API Key", false);
-                setTimeout(() => {
-                    hideResult();
-                    if (html5QrcodeScanner.getState() !== 2) html5QrcodeScanner.resume();
-                }, 2000);
+                showNotification("請先輸入 API Key", false);
                 return;
             }
             callApi(endpoint, decodedText, apiKey, mode);
@@ -136,36 +150,17 @@
                     if (mode === 'check-in' && data.table_number) {
                         message += ` 您的桌號是：${data.table_number}`;
                     }
-                    displayResult(message, true);
+                    showNotification(message, true);
                 } else {
                     let errorMessage = data.detail;
                     if (typeof errorMessage === 'object' && errorMessage !== null) {
                         errorMessage = errorMessage.detail + (errorMessage.name ? ` (${errorMessage.name})` : '');
                     }
-                    displayResult(errorMessage || '發生未知錯誤', false);
+                    showNotification(errorMessage || '發生未知錯誤', false);
                 }
             } catch (error) {
-                displayResult('無法連接至 API 伺服器', false);
-            } finally {
-                setTimeout(() => {
-                    hideResult();
-                    if (html5QrcodeScanner.getState() !== 2) html5QrcodeScanner.resume();
-                }, 3000);
+                showNotification('無法連接至 API 伺服器', false);
             }
-        }
-
-        function displayResult(message, isSuccess) {
-            resultDiv.textContent = message;
-            resultDiv.className = isSuccess ? 'result-visible result-success' : 'result-visible result-error';
-            const flashClass = isSuccess ? 'body-flash-success' : 'body-flash-error';
-            bodyEl.classList.add(flashClass);
-            playSound(isSuccess ? 'success' : 'error');
-            // Hide is now handled in the calling function's timeout
-        }
-
-        function hideResult() {
-            bodyEl.classList.remove('body-flash-success', 'body-flash-error');
-            resultDiv.classList.remove('result-visible', 'result-success', 'result-error');
         }
 
         const html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
