@@ -51,6 +51,21 @@
 
         .footer { width: 100%; max-width: 500px; margin-top: 1rem; }
         #api-key-input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+
+        /* Custom styles for html5-qrcode */
+        #qr-reader button {
+            padding: 1rem 1.5rem !important;
+            font-size: 1.2rem !important;
+            width: auto !important;
+            min-width: 150px;
+        }
+        #html5-qrcode-button-camera-permission,
+        #html5-qrcode-button-camera-start {
+             margin-bottom: 1rem !important;
+        }
+        #html5-qrcode-button-file-selection {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
@@ -158,7 +173,39 @@
         }
 
         const html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+
+        function setupScannerUI() {
+            try {
+                const startButton = document.getElementById('html5-qrcode-button-camera-start');
+                if (startButton) {
+                    startButton.textContent = '開始掃描';
+                }
+                const permissionButton = document.getElementById('html5-qrcode-button-camera-permission');
+                 if (permissionButton) {
+                    permissionButton.textContent = '請求相機權限';
+                }
+            } catch (e) {
+                console.error("Could not customize scanner buttons.", e);
+            }
+        }
+
         html5QrcodeScanner.render(onScanSuccess);
+
+        // Use a MutationObserver to wait for the scanner UI to be rendered
+        const observer = new MutationObserver((mutationsList, observer) => {
+            for(const mutation of mutationsList) {
+                if (mutation.type === 'childList') {
+                    const startButton = document.getElementById('html5-qrcode-button-camera-start');
+                    const permissionButton = document.getElementById('html5-qrcode-button-camera-permission');
+                    if (startButton || permissionButton) {
+                        setupScannerUI();
+                        observer.disconnect(); // Stop observing once we've found the buttons
+                        return;
+                    }
+                }
+            }
+        });
+        observer.observe(document.getElementById('qr-reader'), { childList: true, subtree: true });
     </script>
 </body>
 </html>
