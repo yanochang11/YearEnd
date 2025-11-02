@@ -114,7 +114,10 @@
             const apiKey = apiKeyInput.value;
             if (!apiKey) {
                 displayResult("請先輸入 API Key", false);
-                setTimeout(() => html5QrcodeScanner.resume(), 2000);
+                setTimeout(() => {
+                    hideResult();
+                    if (html5QrcodeScanner.getState() !== 2) html5QrcodeScanner.resume();
+                }, 2000);
                 return;
             }
             callApi(endpoint, decodedText, apiKey, mode);
@@ -145,6 +148,7 @@
                 displayResult('無法連接至 API 伺服器', false);
             } finally {
                 setTimeout(() => {
+                    hideResult();
                     if (html5QrcodeScanner.getState() !== 2) html5QrcodeScanner.resume();
                 }, 3000);
             }
@@ -156,11 +160,12 @@
             const flashClass = isSuccess ? 'body-flash-success' : 'body-flash-error';
             bodyEl.classList.add(flashClass);
             playSound(isSuccess ? 'success' : 'error');
-            const duration = isSuccess ? 1000 : 500;
-            setTimeout(() => {
-                bodyEl.classList.remove(flashClass);
-                resultDiv.classList.remove('result-visible', 'result-success', 'result-error');
-            }, duration);
+            // Hide is now handled in the calling function's timeout
+        }
+
+        function hideResult() {
+            bodyEl.classList.remove('body-flash-success', 'body-flash-error');
+            resultDiv.classList.remove('result-visible', 'result-success', 'result-error');
         }
 
         const html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
