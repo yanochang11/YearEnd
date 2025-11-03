@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     COL_CHECK_OUT_STATUS: str = "CheckOutStatus"
     COL_CHECK_OUT_TIME: str = "CheckOutTime"
 
+    # Cache Settings
+    CACHE_UPDATE_INTERVAL_SECONDS: int = 300
+
     @property
     def google_credentials(self) -> dict:
         if not self.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64:
