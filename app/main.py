@@ -26,7 +26,7 @@ def check_in(request: CheckInRequest, api_key: str = Depends(get_api_key)):
     try:
         gsheet_client = GSheetClient.from_settings()
         worksheet = gsheet_client.get_worksheet(settings.WORKSHEET_NAME)
-        attendee = gsheet_client.find_row_by_unique_id(worksheet, request.unique_id)
+        attendee = gsheet_client.find_row_by_unique_id(worksheet, request.employeeId)
 
         if not attendee:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="賓客 ID 不存在")
@@ -41,7 +41,7 @@ def check_in(request: CheckInRequest, api_key: str = Depends(get_api_key)):
                 }
             )
 
-        gsheet_client.update_check_in_status(worksheet, request.unique_id)
+        gsheet_client.update_check_in_status(worksheet, request.employeeId)
 
         return CheckInSuccessResponse(
             name=attendee.get(settings.COL_NAME, ""),
@@ -58,7 +58,7 @@ def check_out(request: CheckInRequest, api_key: str = Depends(get_api_key)):
     try:
         gsheet_client = GSheetClient.from_settings()
         worksheet = gsheet_client.get_worksheet(settings.WORKSHEET_NAME)
-        attendee = gsheet_client.find_row_by_unique_id(worksheet, request.unique_id)
+        attendee = gsheet_client.find_row_by_unique_id(worksheet, request.employeeId)
 
         if not attendee:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="賓客 ID 不存在")
@@ -72,7 +72,7 @@ def check_out(request: CheckInRequest, api_key: str = Depends(get_api_key)):
                 detail={"detail": "此人已簽退", "name": attendee.get(settings.COL_NAME, "")}
             )
 
-        gsheet_client.update_check_out_status(worksheet, request.unique_id)
+        gsheet_client.update_check_out_status(worksheet, request.employeeId)
         return CheckOutSuccessResponse(name=attendee.get(settings.COL_NAME, ""), department=attendee.get(settings.COL_DEPARTMENT, ""))
     except HTTPException:
         raise
