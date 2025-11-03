@@ -55,8 +55,9 @@ def send_qr_code_emails_mailgun(limit: int = None):
         name = attendee.get(settings.COL_NAME)
         email = attendee.get(settings.COL_EMAIL)
         unique_id = attendee.get(settings.COL_UNIQUE_ID)
+        table_number = attendee.get(settings.COL_TABLE_NUMBER)
 
-        if not all([name, email, unique_id]):
+        if not all([name, email, unique_id, table_number]):
             print(f"警告：賓客資料不完整，跳過此筆記錄：{attendee}")
             continue
 
@@ -72,7 +73,8 @@ def send_qr_code_emails_mailgun(limit: int = None):
             html_body = f"""
             <html><body>
                 <p>Hi {name},</p>
-                <p>這是您的尾牙報到 QR Code。</p><br>
+                <p>這是您的尾牙報到 QR Code。</p>
+                <p>您的座位在 <strong>{table_number}</strong> 號桌。</p><br>
                 <img src="cid:qrcode.png"><br>
                 <p>期待您的蒞臨！</p>
             </body></html>
