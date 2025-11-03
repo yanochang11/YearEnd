@@ -40,9 +40,11 @@ class WebsiteUser(HttpUser):
         with self.client.post(CHECKIN_ENDPOINT, data=payload, headers=headers, catch_response=True) as response:
             if response.status_code == 200:
                 self.checked_in_ids.append(user_id)
+                response.success()
+            elif response.status_code == 409: # Already checked in
+                response.success() # Treat as success because the API is working correctly
             else:
-                response.failure(f"Check-in failed with status {response.status_code}")
-
+                response.failure(f"Check-in failed with unexpected status {response.status_code}")
 
     @task(1) # 25% 的權重：模擬簽退
     def simulate_checkout(self):
@@ -56,11 +58,11 @@ class WebsiteUser(HttpUser):
             "X-API-Key": API_KEY,
             "Content-Type": "application/json"
         }
-        self.client.post(
-            CHECKOUT_ENDPOINT,
-            data=payload,
-            headers=headers
-        )
+        with self.client.post(CHECKOUT_ENDPOINT, data=payload, headers=headers, catch_response=True) as response:
+            if response.status_code in [200, 400, 409]: # OK, Not checked in, Already checked out
+                response.success() # Treat as success because the API is working correctly
+            else:
+                response.failure(f"Check-out failed with unexpected status {response.status_code}")
 
     @task(1) # 25% 的權重：模擬主管查看儀表板
     def view_dashboard(self):
