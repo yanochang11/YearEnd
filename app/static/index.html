@@ -80,7 +80,7 @@
         </div>
     </div>
     <div class="footer">
-        <input type="text" id="api-key-input" placeholder="請在此輸入 API Key">
+        <input type="password" id="api-key-input" placeholder="請在此輸入 API Key">
     </div>
 
     <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
@@ -146,12 +146,12 @@
             callApi(endpoint, decodedText, apiKey, mode);
         }
 
-        async function callApi(endpoint, uniqueId, apiKey, mode) {
+        async function callApi(endpoint, employeeId, apiKey, mode) {
             try {
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
-                    body: JSON.stringify({ unique_id: uniqueId }),
+                    body: JSON.stringify({ employeeId: employeeId }),
                 });
                 const data = await response.json();
                 if (response.ok) {
