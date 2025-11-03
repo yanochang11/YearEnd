@@ -1,0 +1,4 @@
+EmployeeID,Name,Department,Email,TableNumber
+101,王大明,工程部,test1@example.com,A1
+102,陳小美,市場部,test2@example.com,B2
+103,李中天,人資部,test3@example.com,C3

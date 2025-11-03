@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>尾牙報到掃描器</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column; /* Main axis is vertical */
+            align-items: center; /* Center items horizontally */
+            justify-content: space-between; /* Space out items vertically */
+            height: 100vh;
+            margin: 0;
+            padding: 1rem;
+            box-sizing: border-box;
+            color: #333;
+            transition: background-color 0.5s ease;
+        }
+        .body-success { background-color: #e8f5e9; } /* Light Green */
+        .body-error { background-color: #ffebee; } /* Light Red */
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: #fff;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        h1 {
+            margin-top: 0;
+            color: #1877f2;
+            transition: color 0.5s ease;
+            font-size: 1.5rem; /* Adjust font size for longer messages */
+            min-height: 84px; /* Reserve space to prevent layout shift */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #status-title.title-success { color: #388e3c; } /* Darker Green */
+        #status-title.title-error { color: #d32f2f; } /* Darker Red */
+
+        #qr-reader { width: 100%; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
+        .mode-selector { display: flex; justify-content: center; gap: 1rem; margin-bottom: 1rem; }
+        .mode-selector input[type="radio"] { display: none; }
+        .mode-selector label { padding: 0.75rem 1.5rem; border: 1px solid #ccc; border-radius: 25px; cursor: pointer; transition: all 0.2s ease-in-out; }
+        .mode-selector input[type="radio"]:checked + label { background-color: #1877f2; color: #fff; border-color: #1877f2; }
+
+        .footer { width: 100%; max-width: 500px; margin-top: 1rem; }
+        #api-key-input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+
+        /* Custom styles for html5-qrcode */
+        #qr-reader button {
+            padding: 1rem 1.5rem !important;
+            font-size: 1.2rem !important;
+            width: auto !important;
+            min-width: 150px;
+        }
+        #html5-qrcode-button-camera-permission,
+        #html5-qrcode-button-camera-start {
+             margin-bottom: 1rem !important;
+        }
+        #html5-qrcode-button-file-selection {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="status-title">尾牙報到掃描器</h1>
+        <div id="qr-reader"></div>
+        <div class="mode-selector">
+            <input type="radio" id="check-in-mode" name="scan-mode" value="check-in" checked>
+            <label for="check-in-mode">簽到</label>
+            <input type="radio" id="check-out-mode" name="scan-mode" value="check-out">
+            <label for="check-out-mode">簽退</label>
+        </div>
+    </div>
+    <div class="footer">
+        <input type="password" id="api-key-input" placeholder="請在此輸入 API Key">
+    </div>
+
+    <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
+    <script>
+        const statusTitle = document.getElementById('status-title');
+        const apiKeyInput = document.getElementById('api-key-input');
+        const bodyEl = document.body;
+        const originalTitle = statusTitle.textContent;
+        let audioContext;
+        let notificationTimer;
+
+        try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); }
+        catch (e) { console.error("Web Audio API is not supported."); }
+
+        function playSound(type) {
+            if (!audioContext) return;
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            if (type === 'success') {
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+            } else {
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            }
+            oscillator.start();
+            setTimeout(() => oscillator.stop(), 150);
+        }
+
+        function showNotification(message, isSuccess) {
+            clearTimeout(notificationTimer); // Clear any existing timer
+
+            statusTitle.textContent = message;
+            const titleClass = isSuccess ? 'title-success' : 'title-error';
+            statusTitle.className = titleClass;
+            bodyEl.className = isSuccess ? 'body-success' : 'body-error';
+            playSound(isSuccess ? 'success' : 'error');
+
+            notificationTimer = setTimeout(() => {
+                statusTitle.textContent = originalTitle;
+                statusTitle.className = '';
+                bodyEl.className = '';
+                if (html5QrcodeScanner.getState() !== 2) { // 2 is SCANNING state
+                    html5QrcodeScanner.resume();
+                }
+            }, 3000);
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            html5QrcodeScanner.pause();
+            const mode = document.querySelector('input[name="scan-mode"]:checked').value;
+            const endpoint = mode === 'check-in' ? '/api/check-in' : '/api/check-out';
+            const apiKey = apiKeyInput.value;
+
+            if (!apiKey) {
+                showNotification("請先輸入 API Key", false);
+                return;
+            }
+            callApi(endpoint, decodedText, apiKey, mode);
+        }
+
+        async function callApi(endpoint, employeeId, apiKey, mode) {
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+                    body: JSON.stringify({ employeeId: employeeId }),
+                });
+                const data = await response.json();
+                if (response.ok) {
+                    let message = (mode === 'check-in' ? `${data.name} (${data.department}) 簽到成功！` : `${data.name} (${data.department}) 簽退成功！`);
+                    if (mode === 'check-in' && data.table_number) {
+                        message += ` 您的桌號是：${data.table_number}`;
+                    }
+                    showNotification(message, true);
+                } else {
+                    let errorMessage = data.detail;
+                    // Handle the specific case of "already checked in"
+                    if (response.status === 409 && typeof errorMessage === 'object' && errorMessage.table_number) {
+                        errorMessage = `${errorMessage.name} 已簽到，您的桌號是：${errorMessage.table_number}`;
+                    } else if (typeof errorMessage === 'object' && errorMessage !== null) {
+                        errorMessage = errorMessage.detail + (errorMessage.name ? ` (${errorMessage.name})` : '');
+                    }
+                    showNotification(errorMessage || '發生未知錯誤', false);
+                }
+            } catch (error) {
+                showNotification('無法連接至 API 伺服器', false);
+            }
+        }
+
+        const html5QrcodeScanner = new Html5QrcodeScanner("qr-reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+
+        function setupScannerUI() {
+            try {
+                const startButton = document.getElementById('html5-qrcode-button-camera-start');
+                if (startButton) {
+                    startButton.textContent = '開始掃描';
+                }
+                const permissionButton = document.getElementById('html5-qrcode-button-camera-permission');
+                 if (permissionButton) {
+                    permissionButton.textContent = '請求相機權限';
+                }
+            } catch (e) {
+                console.error("Could not customize scanner buttons.", e);
+            }
+        }
+
+        html5QrcodeScanner.render(onScanSuccess);
+
+        // Use a MutationObserver to wait for the scanner UI to be rendered
+        const observer = new MutationObserver((mutationsList, observer) => {
+            for(const mutation of mutationsList) {
+                if (mutation.type === 'childList') {
+                    const startButton = document.getElementById('html5-qrcode-button-camera-start');
+                    const permissionButton = document.getElementById('html5-qrcode-button-camera-permission');
+                    if (startButton || permissionButton) {
+                        setupScannerUI();
+                        observer.disconnect(); // Stop observing once we've found the buttons
+                        return;
+                    }
+                }
+            }
+        });
+        observer.observe(document.getElementById('qr-reader'), { childList: true, subtree: true });
+    </script>
+</body>
+</html>

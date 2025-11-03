@@ -1,0 +1,16 @@
+# Environments
+.env
+.venv
+venv/
+__pycache__/
+
+# Google Cloud
+service_account.json
+
+# IDEs and OS files
+.idea/
+.vscode/
+.DS_Store
+
+# Log files
+*.log
