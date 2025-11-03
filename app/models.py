@@ -3,7 +3,7 @@ from typing import Optional
 
 class CheckInRequest(BaseModel):
     """Request model for the check-in endpoint."""
-    unique_id: str = Field(..., description="The unique ID of the attendee.")
+    employeeId: str = Field(..., description="The unique ID of the attendee.")
 
 class CheckInSuccessResponse(BaseModel):
     """Response model for a successful check-in."""
