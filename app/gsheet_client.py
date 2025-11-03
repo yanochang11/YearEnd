@@ -37,9 +37,9 @@ class GSheetClient:
         """Gets a worksheet by name. Raises gspread.exceptions.WorksheetNotFound if not found."""
         return self.spreadsheet.worksheet(worksheet_name)
 
-    def find_row_by_unique_id(self, worksheet: gspread.Worksheet, unique_id: str) -> Optional[Dict[str, Any]]:
+    def find_row_by_employee_id(self, worksheet: gspread.Worksheet, employee_id: str) -> Optional[Dict[str, Any]]:
         """
-        Finds a guest's record by their UniqueID.
+        Finds a guest's record by their EmployeeID.
         """
         try:
             headers = worksheet.row_values(1)
@@ -47,9 +47,9 @@ class GSheetClient:
             if uid_col_name not in headers:
                 raise ValueError(f"Column '{uid_col_name}' not found in the worksheet.")
 
-            unique_id_col_index = headers.index(uid_col_name) + 1
+            employee_id_col_index = headers.index(uid_col_name) + 1
 
-            cell = worksheet.find(unique_id, in_column=unique_id_col_index)
+            cell = worksheet.find(employee_id, in_column=employee_id_col_index)
             if not cell:
                 return None
 
@@ -59,13 +59,13 @@ class GSheetClient:
         except gspread.exceptions.CellNotFound:
             return None
 
-    def update_check_in_status(self, worksheet: gspread.Worksheet, unique_id: str) -> bool:
+    def update_check_in_status(self, worksheet: gspread.Worksheet, employee_id: str) -> bool:
         """Updates the check-in status and timestamp for a user."""
         try:
             headers = worksheet.row_values(1)
             uid_col_index = headers.index(settings.COL_UNIQUE_ID) + 1
 
-            cell = worksheet.find(unique_id, in_column=uid_col_index)
+            cell = worksheet.find(employee_id, in_column=uid_col_index)
             if not cell:
                 return False
 
@@ -78,13 +78,13 @@ class GSheetClient:
         except (gspread.exceptions.CellNotFound, ValueError):
             return False
 
-    def update_check_out_status(self, worksheet: gspread.Worksheet, unique_id: str) -> bool:
+    def update_check_out_status(self, worksheet: gspread.Worksheet, employee_id: str) -> bool:
         """Updates the check-out status and timestamp for a user."""
         try:
             headers = worksheet.row_values(1)
             uid_col_index = headers.index(settings.COL_UNIQUE_ID) + 1
 
-            cell = worksheet.find(unique_id, in_column=uid_col_index)
+            cell = worksheet.find(employee_id, in_column=uid_col_index)
             if not cell:
                 return False
 

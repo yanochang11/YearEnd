@@ -20,21 +20,25 @@ async def spreadsheet_not_found_handler(request, exc):
 async def worksheet_not_found_handler(request, exc):
     return JSONResponse(status_code=503, content={"detail": f"Worksheet '{settings.WORKSHEET_NAME}' not found."})
 
+@app.exception_handler(gspread.exceptions.APIError)
+async def gspread_api_error_handler(request, exc):
+    return JSONResponse(status_code=503, content={"detail": f"Google Sheets API error: {exc}"})
 
-@api_router.post("/check-in", response_model=CheckInSuccessResponse, tags=["Check-in/Out"])
+
+@api_router.post("/check-in", tags=["Check-in/Out"])
 def check_in(request: CheckInRequest, api_key: str = Depends(get_api_key)):
     try:
         gsheet_client = GSheetClient.from_settings()
         worksheet = gsheet_client.get_worksheet(settings.WORKSHEET_NAME)
-        attendee = gsheet_client.find_row_by_unique_id(worksheet, request.employeeId)
+        attendee = gsheet_client.find_row_by_employee_id(worksheet, request.employeeId)
 
         if not attendee:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="賓客 ID 不存在")
 
         if str(attendee.get(settings.COL_CHECK_IN_STATUS, "FALSE")).upper() == "TRUE":
-            raise HTTPException(
+            return JSONResponse(
                 status_code=status.HTTP_409_CONFLICT,
-                detail={
+                content={
                     "detail": "此人已簽到",
                     "name": attendee.get(settings.COL_NAME, ""),
                     "table_number": attendee.get(settings.COL_TABLE_NUMBER)
@@ -58,7 +62,7 @@ def check_out(request: CheckInRequest, api_key: str = Depends(get_api_key)):
     try:
         gsheet_client = GSheetClient.from_settings()
         worksheet = gsheet_client.get_worksheet(settings.WORKSHEET_NAME)
-        attendee = gsheet_client.find_row_by_unique_id(worksheet, request.employeeId)
+        attendee = gsheet_client.find_row_by_employee_id(worksheet, request.employeeId)
 
         if not attendee:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="賓客 ID 不存在")
