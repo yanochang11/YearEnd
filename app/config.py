@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     GOOGLE_ACCOUNT_EMAIL_TO_SHARE: Optional[str] = None
 
     # API Security
-    API_KEY: str = "Mcinit12"
+    API_KEY: str = "your_default_api_key"
 
     # Mailgun
     MAILGUN_API_KEY: str = ""
@@ -20,11 +20,11 @@ class Settings(BaseSettings):
     MAILGUN_API_BASE_URL: str = "https://api.mailgun.net/v3"
 
     # Google Sheets
-    SPREADSHEET_NAME: str = "尾牙報到系統(壓力測試)"
+    SPREADSHEET_NAME: str = "尾牙報到系統"
     WORKSHEET_NAME: str = "賓客名單"
 
     # --- Google Sheets Column Names ---
-    COL_UNIQUE_ID: str = "EmployeeID"
+    COL_UNIQUE_ID: str = "UniqueID"
     COL_NAME: str = "Name"
     COL_DEPARTMENT: str = "Department"
     COL_EMAIL: str = "Email"
