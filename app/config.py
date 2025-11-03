@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     MAILGUN_API_BASE_URL: str = "https://api.mailgun.net/v3"
 
     # Google Sheets
-    SPREADSHEET_NAME: str = "尾牙報到系統"
+    SPREADSHEET_NAME: str = "尾牙報到系統(壓力測試)"
     WORKSHEET_NAME: str = "賓客名單"
 
     # --- Google Sheets Column Names ---
