@@ -162,13 +162,17 @@
                     showNotification(message, true);
                 } else {
                     let errorMessage = data.detail;
-                    // Handle the specific case of "already checked in"
-                    if (response.status === 409 && typeof errorMessage === 'object' && errorMessage.table_number) {
-                        errorMessage = `${errorMessage.name} 已簽到，您的桌號是：${errorMessage.table_number}`;
-                    } else if (typeof errorMessage === 'object' && errorMessage !== null) {
-                        errorMessage = errorMessage.detail + (errorMessage.name ? ` (${errorMessage.name})` : '');
+                    let isConflict = response.status === 409;
+
+                    // Handle the specific case of "already checked in" to show name and table number
+                    if (isConflict && data.name && data.table_number) {
+                        errorMessage = `${data.name} 已簽到，您的桌號是：${data.table_number}`;
+                    } else if (typeof data.detail === 'object' && data.detail !== null) {
+                        errorMessage = data.detail.detail + (data.detail.name ? ` (${data.detail.name})` : '');
                     }
-                    showNotification(errorMessage || '發生未知錯誤', false);
+
+                    // For conflicts, we treat it as a "success" sound/color-wise, but show the error message.
+                    showNotification(errorMessage || '發生未知錯誤', isConflict);
                 }
             } catch (error) {
                 showNotification('無法連接至 API 伺服器', false);
