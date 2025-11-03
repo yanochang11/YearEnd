@@ -76,7 +76,7 @@ class GSheetClient:
             return None
 
     @retry_with_backoff()
-    def update_check_in_status(self, worksheet: gspread.Worksheet, employee_id: str) -> bool:
+    def update_check_in_status(self, worksheet: gspread.Worksheet, employee_id: str, timestamp_str: str) -> bool:
         try:
             headers = worksheet.row_values(1)
             uid_col_index = headers.index(settings.COL_UNIQUE_ID) + 1
@@ -85,7 +85,7 @@ class GSheetClient:
 
             updates = [
                 {'range': f'{gspread.utils.rowcol_to_a1(cell.row, headers.index(settings.COL_CHECK_IN_STATUS) + 1)}', 'values': [['TRUE']]},
-                {'range': f'{gspread.utils.rowcol_to_a1(cell.row, headers.index(settings.COL_CHECK_IN_TIME) + 1)}', 'values': [[datetime.now(timezone.utc).isoformat()]]},
+                {'range': f'{gspread.utils.rowcol_to_a1(cell.row, headers.index(settings.COL_CHECK_IN_TIME) + 1)}', 'values': [[timestamp_str]]},
             ]
             worksheet.batch_update(updates)
             return True
@@ -93,7 +93,7 @@ class GSheetClient:
             return False
 
     @retry_with_backoff()
-    def update_check_out_status(self, worksheet: gspread.Worksheet, employee_id: str) -> bool:
+    def update_check_out_status(self, worksheet: gspread.Worksheet, employee_id: str, timestamp_str: str) -> bool:
         try:
             headers = worksheet.row_values(1)
             uid_col_index = headers.index(settings.COL_UNIQUE_ID) + 1
@@ -102,7 +102,7 @@ class GSheetClient:
 
             updates = [
                 {'range': f'{gspread.utils.rowcol_to_a1(cell.row, headers.index(settings.COL_CHECK_OUT_STATUS) + 1)}', 'values': [['TRUE']]},
-                {'range': f'{gspread.utils.rowcol_to_a1(cell.row, headers.index(settings.COL_CHECK_OUT_TIME) + 1)}', 'values': [[datetime.now(timezone.utc).isoformat()]]},
+                {'range': f'{gspread.utils.rowcol_to_a1(cell.row, headers.index(settings.COL_CHECK_OUT_TIME) + 1)}', 'values': [[timestamp_str]]},
             ]
             worksheet.batch_update(updates)
             return True

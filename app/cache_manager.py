@@ -2,14 +2,16 @@
 import threading
 import time
 import gspread
+import pytz
 from typing import Dict, List, Any, Optional, Tuple
 from collections import deque
-from datetime import datetime, timezone
+from datetime import datetime
 
 from .gsheet_client import GSheetClient
 from .config import settings
 
-UpdateTask = Tuple[str, str] # (employee_id, "check-in" | "check-out")
+UpdateTask = Tuple[str, str, str] # (employee_id, "check-in" | "check-out", timestamp_str)
+TAIPEI_TZ = pytz.timezone("Asia/Taipei")
 
 class CacheManager:
     _instance = None
@@ -87,13 +89,11 @@ class CacheManager:
                         gsheet_client = GSheetClient.from_settings()
                         worksheet = gsheet_client.get_worksheet(settings.WORKSHEET_NAME)
 
-                        # In a real high-throughput system, you'd batch these updates
-                        # For simplicity here, we process them one by one.
-                        for employee_id, update_type in updates_to_process:
+                        for employee_id, update_type, timestamp_str in updates_to_process:
                             if update_type == "check-in":
-                                gsheet_client.update_check_in_status(worksheet, employee_id)
+                                gsheet_client.update_check_in_status(worksheet, employee_id, timestamp_str)
                             elif update_type == "check-out":
-                                gsheet_client.update_check_out_status(worksheet, employee_id)
+                                gsheet_client.update_check_out_status(worksheet, employee_id, timestamp_str)
                         print("Finished processing updates.")
 
                     except gspread.exceptions.APIError as e:
@@ -117,12 +117,14 @@ class CacheManager:
             if not attendee:
                 return None
 
+            timestamp_str = datetime.now(TAIPEI_TZ).isoformat()
+
             # Update cache immediately
             attendee[settings.COL_CHECK_IN_STATUS] = "TRUE"
-            attendee[settings.COL_CHECK_IN_TIME] = datetime.now(timezone.utc).isoformat()
+            attendee[settings.COL_CHECK_IN_TIME] = timestamp_str
 
             # Add to write queue
-            self.update_queue.append((employee_id, "check-in"))
+            self.update_queue.append((employee_id, "check-in", timestamp_str))
             return attendee
 
     def update_check_out_status(self, employee_id: str) -> Optional[Dict[str, Any]]:
@@ -131,12 +133,14 @@ class CacheManager:
             if not attendee:
                 return None
 
+            timestamp_str = datetime.now(TAIPEI_TZ).isoformat()
+
             # Update cache immediately
             attendee[settings.COL_CHECK_OUT_STATUS] = "TRUE"
-            attendee[settings.COL_CHECK_OUT_TIME] = datetime.now(timezone.utc).isoformat()
+            attendee[settings.COL_CHECK_OUT_TIME] = timestamp_str
 
             # Add to write queue
-            self.update_queue.append((employee_id, "check-out"))
+            self.update_queue.append((employee_id, "check-out", timestamp_str))
             return attendee
 
 cache_manager = CacheManager.get_instance()
