@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     WORKSHEET_NAME: str = "賓客名單"
 
     # --- Google Sheets Column Names ---
-    COL_UNIQUE_ID: str = "UniqueID"
+    COL_UNIQUE_ID: str = "EmployeeID"
     COL_NAME: str = "Name"
     COL_DEPARTMENT: str = "Department"
     COL_EMAIL: str = "Email"
