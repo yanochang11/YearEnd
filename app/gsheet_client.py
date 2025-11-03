@@ -75,39 +75,10 @@ class GSheetClient:
         except gspread.exceptions.CellNotFound:
             return None
 
-    @retry_with_backoff()
-    def update_check_in_status(self, worksheet: gspread.Worksheet, employee_id: str, timestamp_str: str) -> bool:
-        try:
-            headers = worksheet.row_values(1)
-            uid_col_index = headers.index(settings.COL_UNIQUE_ID) + 1
-            cell = worksheet.find(employee_id, in_column=uid_col_index)
-            if not cell: return False
-
-            updates = [
-                {'range': f'{gspread.utils.rowcol_to_a1(cell.row, headers.index(settings.COL_CHECK_IN_STATUS) + 1)}', 'values': [['TRUE']]},
-                {'range': f'{gspread.utils.rowcol_to_a1(cell.row, headers.index(settings.COL_CHECK_IN_TIME) + 1)}', 'values': [[timestamp_str]]},
-            ]
-            worksheet.batch_update(updates)
-            return True
-        except (gspread.exceptions.CellNotFound, ValueError):
-            return False
 
     @retry_with_backoff()
-    def update_check_out_status(self, worksheet: gspread.Worksheet, employee_id: str, timestamp_str: str) -> bool:
-        try:
-            headers = worksheet.row_values(1)
-            uid_col_index = headers.index(settings.COL_UNIQUE_ID) + 1
-            cell = worksheet.find(employee_id, in_column=uid_col_index)
-            if not cell: return False
-
-            updates = [
-                {'range': f'{gspread.utils.rowcol_to_a1(cell.row, headers.index(settings.COL_CHECK_OUT_STATUS) + 1)}', 'values': [['TRUE']]},
-                {'range': f'{gspread.utils.rowcol_to_a1(cell.row, headers.index(settings.COL_CHECK_OUT_TIME) + 1)}', 'values': [[timestamp_str]]},
-            ]
-            worksheet.batch_update(updates)
-            return True
-        except (gspread.exceptions.CellNotFound, ValueError):
-            return False
+    def batch_update_cells(self, worksheet: gspread.Worksheet, cells: list):
+        worksheet.update_cells(cells, value_input_option='USER_ENTERED')
 
     @retry_with_backoff()
     def get_status_counts(self, worksheet: gspread.Worksheet) -> Dict[str, int]:

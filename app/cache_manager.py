@@ -12,6 +12,8 @@ from .config import settings
 
 UpdateTask = Tuple[str, str, str] # (employee_id, "check-in" | "check-out", timestamp_str)
 TAIPEI_TZ = pytz.timezone("Asia/Taipei")
+# Each task generates 2 cells, so 50 tasks = 100 cells
+TASK_BATCH_SIZE = 50
 
 class CacheManager:
     _instance = None
@@ -19,6 +21,7 @@ class CacheManager:
 
     def __init__(self):
         self.attendees_cache: Dict[str, Dict[str, Any]] = {}
+        self.employee_id_to_row_index: Dict[str, int] = {}
         self.update_queue: deque[UpdateTask] = deque()
         self.last_updated: Optional[float] = None
         self.is_initialized = False
@@ -55,16 +58,30 @@ class CacheManager:
         try:
             gsheet_client = GSheetClient.from_settings()
             worksheet = gsheet_client.get_worksheet(settings.WORKSHEET_NAME)
-            records = worksheet.get_all_records()
+            all_values = worksheet.get_all_values()
+
+            if not all_values:
+                print("Warning: Google Sheet is empty.")
+                self.is_initialized = False
+                return
+
+            headers = all_values[0]
+            records = [dict(zip(headers, row)) for row in all_values[1:]]
 
             with self._lock:
                 self.attendees_cache = {str(record[settings.COL_UNIQUE_ID]): record for record in records}
+                self.employee_id_to_row_index = {
+                    str(record[settings.COL_UNIQUE_ID]): index + 2
+                    for index, record in enumerate(records)
+                }
                 self.last_updated = time.time()
                 self.is_initialized = True
 
             print(f"Successfully loaded {len(records)} records into cache.")
-        except gspread.exceptions.APIError as e:
-            print(f"Error loading initial data: {e}")
+        except Exception as e:
+            import traceback
+            print(f"FATAL: Error loading initial data: {e}")
+            traceback.print_exc()
             self.is_initialized = False
 
     def _background_cache_reload(self):
@@ -76,32 +93,74 @@ class CacheManager:
 
     def _background_writer(self):
         while not self.shutdown_event.is_set():
-            self.shutdown_event.wait(10) # Process queue every 10 seconds
-            if self.update_queue:
-                updates_to_process = []
-                with self._lock:
-                    while self.update_queue:
-                        updates_to_process.append(self.update_queue.popleft())
+            self.shutdown_event.wait(10)
+            if not self.update_queue:
+                continue
 
-                if updates_to_process:
-                    print(f"Processing {len(updates_to_process)} updates from queue...")
+            updates_to_process = []
+            with self._lock:
+                while self.update_queue:
+                    updates_to_process.append(self.update_queue.popleft())
+
+            if not updates_to_process:
+                continue
+
+            print(f"Processing {len(updates_to_process)} updates from queue...")
+
+            try:
+                gsheet_client = GSheetClient.from_settings()
+                worksheet = gsheet_client.get_worksheet(settings.WORKSHEET_NAME)
+                headers = worksheet.row_values(1)
+                header_map = {header: i + 1 for i, header in enumerate(headers)}
+
+                # Chunk tasks into smaller batches before generating cells
+                for i in range(0, len(updates_to_process), TASK_BATCH_SIZE):
+                    task_batch = updates_to_process[i:i + TASK_BATCH_SIZE]
+                    cells_to_update = []
+
+                    for employee_id, update_type, timestamp_str in task_batch:
+                        row_index = self.employee_id_to_row_index.get(employee_id)
+                        if not row_index:
+                            print(f"Warning: Could not find row for employee {employee_id}. Skipping.")
+                            continue
+
+                        if update_type == "check-in":
+                            status_col = header_map[settings.COL_CHECK_IN_STATUS]
+                            time_col = header_map[settings.COL_CHECK_IN_TIME]
+                            cells_to_update.append(gspread.Cell(row_index, status_col, "TRUE"))
+                            cells_to_update.append(gspread.Cell(row_index, time_col, timestamp_str))
+                        elif update_type == "check-out":
+                            status_col = header_map[settings.COL_CHECK_OUT_STATUS]
+                            time_col = header_map[settings.COL_CHECK_OUT_TIME]
+                            cells_to_update.append(gspread.Cell(row_index, status_col, "TRUE"))
+                            cells_to_update.append(gspread.Cell(row_index, time_col, timestamp_str))
+
+                    if not cells_to_update:
+                        continue
+
                     try:
-                        gsheet_client = GSheetClient.from_settings()
-                        worksheet = gsheet_client.get_worksheet(settings.WORKSHEET_NAME)
-
-                        for employee_id, update_type, timestamp_str in updates_to_process:
-                            if update_type == "check-in":
-                                gsheet_client.update_check_in_status(worksheet, employee_id, timestamp_str)
-                            elif update_type == "check-out":
-                                gsheet_client.update_check_out_status(worksheet, employee_id, timestamp_str)
-                        print("Finished processing updates.")
-
-                    except gspread.exceptions.APIError as e:
-                        print(f"Error processing update queue: {e}")
-                        # Re-queue failed updates for next attempt
+                        print(f"Updating a batch of {len(cells_to_update)} cells for {len(task_batch)} tasks...")
+                        gsheet_client.batch_update_cells(worksheet, cells_to_update)
+                    except Exception as e:
+                        print("="*80)
+                        print(f"ERROR: Failed to update a batch of {len(task_batch)} tasks. This batch will be re-queued.")
+                        print(f"Error Details: {e}")
+                        print("="*80)
                         with self._lock:
-                            for item in reversed(updates_to_process):
+                            for item in reversed(task_batch):
                                 self.update_queue.appendleft(item)
+
+                print(f"Finished processing for this cycle.")
+
+            except Exception as e:
+                import traceback
+                print("="*80)
+                print(f"FATAL: An unexpected error occurred before batch processing. All tasks for this cycle will be re-queued.")
+                traceback.print_exc()
+                print("="*80)
+                with self._lock:
+                    for item in reversed(updates_to_process):
+                        self.update_queue.appendleft(item)
 
     def get_attendee(self, employee_id: str) -> Optional[Dict[str, Any]]:
         with self._lock:
@@ -119,11 +178,9 @@ class CacheManager:
 
             timestamp_str = datetime.now(TAIPEI_TZ).isoformat()
 
-            # Update cache immediately
             attendee[settings.COL_CHECK_IN_STATUS] = "TRUE"
             attendee[settings.COL_CHECK_IN_TIME] = timestamp_str
 
-            # Add to write queue
             self.update_queue.append((employee_id, "check-in", timestamp_str))
             return attendee
 
@@ -135,11 +192,9 @@ class CacheManager:
 
             timestamp_str = datetime.now(TAIPEI_TZ).isoformat()
 
-            # Update cache immediately
             attendee[settings.COL_CHECK_OUT_STATUS] = "TRUE"
             attendee[settings.COL_CHECK_OUT_TIME] = timestamp_str
 
-            # Add to write queue
             self.update_queue.append((employee_id, "check-out", timestamp_str))
             return attendee
 
