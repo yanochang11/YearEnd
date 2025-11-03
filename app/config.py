@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     GOOGLE_ACCOUNT_EMAIL_TO_SHARE: Optional[str] = None
 
     # API Security
-    API_KEY: str = "your_default_api_key"
+    API_KEY: str = "Mcinit12"
 
     # Mailgun
     MAILGUN_API_KEY: str = ""
