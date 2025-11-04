@@ -164,15 +164,19 @@
                     let errorMessage = data.detail;
                     let isConflict = response.status === 409;
 
-                    // Handle the specific case of "already checked in" to show name and table number
-                    if (isConflict && data.name && data.table_number) {
-                        errorMessage = `${data.name} 已簽到，您的桌號是：${data.table_number}`;
+                    // Personalize conflict messages for check-in and check-out
+                    if (isConflict && data.name) {
+                        if (mode === 'check-in' && data.table_number) {
+                            errorMessage = `${data.name} 已簽到，您的桌號是：${data.table_number}`;
+                        } else if (mode === 'check-out') {
+                            errorMessage = `${data.name} 已簽退。`;
+                        }
                     } else if (typeof data.detail === 'object' && data.detail !== null) {
                         errorMessage = data.detail.detail + (data.detail.name ? ` (${data.detail.name})` : '');
                     }
 
-                    // For conflicts, we treat it as a "success" sound/color-wise, but show the error message.
-                    showNotification(errorMessage || '發生未知錯誤', isConflict);
+                    // Any non-200 response is now treated as a UX failure.
+                    showNotification(errorMessage || '發生未知錯誤', false);
                 }
             } catch (error) {
                 showNotification('無法連接至 API 伺服器', false);
