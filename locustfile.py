@@ -1,7 +1,13 @@
 # locustfile.py
 import random
 import json
+import os
 from locust import HttpUser, task, between
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 
 # --- 您需要修改的區域 ---
 
@@ -16,8 +22,11 @@ CHECKOUT_ENDPOINT = "/api/check-out"
 DASHBOARD_ENDPOINT = "/api/status"
 
 # 3. 您的 API Key (從 .env 取得)
-# 最好是為測試環境設定一個專用的 Key
-API_KEY = "Mcinit12" # 請替換為您的測試 API Key
+# 腳本會自動從 .env 檔案讀取 API_KEY
+API_KEY = os.getenv("API_KEY")
+if not API_KEY:
+    print("錯誤：API_KEY 未在 .env 檔案中設定。")
+    exit(1)
 
 # --- 腳本主體 ---
 
